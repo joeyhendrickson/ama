@@ -1,5 +1,4 @@
-// app/api/stripe/webhook/route.ts
-
+// src/app/api/stripe/webhook/route.ts
 import { NextResponse } from 'next/server'
 import Stripe from 'stripe'
 
@@ -8,8 +7,8 @@ const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!, {
 })
 
 export async function POST(req: Request) {
+  const sig = req.headers.get('stripe-signature') as string
   const body = await req.text()
-  const sig = req.headers.get('stripe-signature') || ''
 
   let event
 
@@ -19,19 +18,20 @@ export async function POST(req: Request) {
       sig,
       process.env.STRIPE_WEBHOOK_SECRET!
     )
-  } catch (err) {
-    console.error('❌ Webhook signature error:', err)
-    return new NextResponse('Webhook Error', { status: 400 })
+  } catch (err: any) {
+    console.error('Webhook signature verification failed.', err.message)
+    return new NextResponse(`Webhook Error: ${err.message}`, { status: 400 })
   }
 
-  console.log('✅ Stripe Event received:', event.type)
-
-  if (event.type === 'checkout.session.completed') {
-    const session = event.data.object as Stripe.Checkout.Session
-    console.log('💰 Payment confirmed for session:', session.id)
-
-    // You could store the session or update Supabase here
+  // Optional: Handle different Stripe event types
+  switch (event.type) {
+    case 'checkout.session.completed':
+      const session = event.data.object
+      console.log('✅ Checkout session completed:', session.id)
+      break
+    default:
+      console.log(`🔔 Received unhandled event: ${event.type}`)
   }
 
-  return new NextResponse('Webhook received', { status: 200 })
+  return new NextResponse('Received', { status: 200 })
 }
