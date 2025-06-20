@@ -3,7 +3,7 @@
 import { headers } from 'next/headers'
 import { NextResponse } from 'next/server'
 import Stripe from 'stripe'
-import { createClient } from '@/utils/supabase/server'
+import { supabase } from '@/lib/supabaseClient'
 
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!, {
   apiVersion: '2023-10-16',
@@ -22,17 +22,14 @@ export async function POST(req: Request) {
       process.env.STRIPE_WEBHOOK_SECRET!
     )
   } catch (err: any) {
-    console.error('❌ Error verifying Stripe webhook signature:', err.message)
+    console.error('❌ Stripe webhook signature error:', err.message)
     return NextResponse.json({ error: 'Invalid signature' }, { status: 400 })
   }
-
-  const supabase = createClient()
 
   switch (event.type) {
     case 'checkout.session.completed': {
       const session = event.data.object as Stripe.Checkout.Session
-      const metadata = session.metadata
-      const votes = JSON.parse(metadata?.votes || '{}')
+      const votes = JSON.parse(session.metadata?.votes || '{}')
 
       for (const [songId, voteCount] of Object.entries(votes)) {
         await supabase.rpc('increment_votes', {
@@ -40,9 +37,9 @@ export async function POST(req: Request) {
           increment_by: Number(voteCount),
         })
       }
-
       break
     }
+
     default:
       console.log(`Unhandled event type: ${event.type}`)
   }
