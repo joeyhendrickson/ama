@@ -1,4 +1,5 @@
 // src/app/api/stripe/webhook/route.ts
+
 import { NextResponse } from 'next/server'
 import Stripe from 'stripe'
 
@@ -19,19 +20,19 @@ export async function POST(req: Request) {
       process.env.STRIPE_WEBHOOK_SECRET!
     )
   } catch (err: any) {
-    console.error('Webhook signature verification failed.', err.message)
+    console.error('❌ Webhook signature verification failed.', err.message)
     return new NextResponse(`Webhook Error: ${err.message}`, { status: 400 })
   }
 
-  // Optional: Handle different Stripe event types
   switch (event.type) {
-    case 'checkout.session.completed':
+    case 'checkout.session.completed': {
       const session = event.data.object
-      console.log('✅ Checkout session completed:', session.id)
+      console.log('✅ Stripe Checkout completed:', session.id)
       break
+    }
     default:
-      console.log(`🔔 Received unhandled event: ${event.type}`)
+      console.log(`🔔 Unhandled event type: ${event.type}`)
   }
 
-  return new NextResponse('Received', { status: 200 })
+  return new NextResponse('Webhook received', { status: 200 })
 }
