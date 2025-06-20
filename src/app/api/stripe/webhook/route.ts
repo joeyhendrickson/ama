@@ -1,98 +1,37 @@
-'use client'
+// app/api/stripe/webhook/route.ts
 
-import { useEffect, useState } from 'react'
-import { useRouter } from 'next/navigation'
-import { loadStripe } from '@stripe/stripe-js'
-import { supabase } from '@/lib/supabaseClient'
+import { NextResponse } from 'next/server'
+import Stripe from 'stripe'
 
-const stripePromise = loadStripe(process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY!)
+const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!, {
+  apiVersion: '2024-04-10',
+})
 
-interface Song {
-  id: string
-  title: string
-  vote_price: number
-}
+export async function POST(req: Request) {
+  const body = await req.text()
+  const sig = req.headers.get('stripe-signature') || ''
 
-export default function CartPage() {
-  const [cart, setCart] = useState<{ [songId: string]: number }>({})
-  const [songs, setSongs] = useState<Song[]>([])
-  const [loading, setLoading] = useState(false)
-  const router = useRouter()
+  let event
 
-  useEffect(() => {
-    const storedCart = localStorage.getItem('cart')
-    if (storedCart) {
-      const parsedCart = JSON.parse(storedCart)
-      setCart(parsedCart)
-      const songIds = Object.keys(parsedCart)
-
-      if (songIds.length > 0) {
-        supabase
-          .from('songs')
-          .select('id, title, vote_price')
-          .in('id', songIds)
-          .then(({ data, error }) => {
-            if (error) {
-              console.error('Error fetching songs:', error.message)
-            } else {
-              setSongs(data || [])
-            }
-          })
-      }
-    }
-  }, [])
-
-  const handleCheckout = async () => {
-    setLoading(true)
-    const response = await fetch('/api/stripe/checkout', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ cart })
-    })
-
-    if (!response.ok) {
-      console.error('Failed to create checkout session')
-      setLoading(false)
-      return
-    }
-
-    const { sessionId } = await response.json()
-    const stripe = await stripePromise
-    await stripe?.redirectToCheckout({ sessionId })
+  try {
+    event = stripe.webhooks.constructEvent(
+      body,
+      sig,
+      process.env.STRIPE_WEBHOOK_SECRET!
+    )
+  } catch (err) {
+    console.error('❌ Webhook signature error:', err)
+    return new NextResponse('Webhook Error', { status: 400 })
   }
 
-  const total = songs.reduce((acc, song) => {
-    const quantity = cart[song.id] || 0
-    return acc + song.vote_price * quantity
-  }, 0)
+  console.log('✅ Stripe Event received:', event.type)
 
-  return (
-    <main className="p-8 sm:p-16 bg-white min-h-screen">
-      <h1 className="text-3xl font-bold mb-6">Your Voting Cart</h1>
+  if (event.type === 'checkout.session.completed') {
+    const session = event.data.object as Stripe.Checkout.Session
+    console.log('💰 Payment confirmed for session:', session.id)
 
-      {Object.keys(cart).length === 0 ? (
-        <p>Your cart is empty.</p>
-      ) : (
-        <>
-          <ul className="mb-6">
-            {songs.map((song) => (
-              <li key={song.id} className="mb-2 text-gray-800">
-                {song.title} × {cart[song.id]} votes @ ${song.vote_price} = ${cart[song.id] * song.vote_price}
-              </li>
-            ))}
-          </ul>
+    // You could store the session or update Supabase here
+  }
 
-          <p className="text-lg font-semibold mb-6">Total: ${total}</p>
-
-          <button
-            onClick={handleCheckout}
-            disabled={loading}
-            className="bg-black text-white px-5 py-2 rounded hover:bg-gray-800"
-          >
-            {loading ? 'Redirecting...' : 'Proceed to Stripe Checkout'}
-          </button>
-        </>
-      )}
-    </main>
-  )
+  return new NextResponse('Webhook received', { status: 200 })
 }
