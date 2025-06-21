@@ -217,19 +217,19 @@ export default function Home() {
           <br />
           New Songs on Spotify
         </h1>
-        <p className="text-lg md:text-xl text-purple-200/80 mt-6 max-w-2xl mx-auto">
-          Support your favorite artists and get rewarded for launching their songs
+        <p className="text-lg md:text-xl text-orange-300/80 mt-6 max-w-2xl mx-auto">
+          Support your favorite artists and earn NFTs for launching their songs
         </p>
         <div className="mt-10 flex flex-col sm:flex-row justify-center items-center gap-4">
           <button 
-            className="bg-purple-600 text-white font-semibold py-3 px-8 rounded-lg hover:bg-purple-700 transition-all duration-300 transform hover:scale-105 shadow-lg hover:shadow-xl w-full sm:w-auto"
+            className="bg-orange-700 text-white font-semibold py-3 px-8 rounded-lg hover:bg-orange-800 transition-all duration-300 transform hover:scale-105 shadow-lg hover:shadow-xl w-full sm:w-auto"
             onClick={triggerArtistCardAnimation}
           >
             Explore Songs
           </button>
           <button 
             onClick={() => setIsModalOpen(true)}
-            className="bg-transparent border border-purple-400 text-white font-semibold py-3 px-8 rounded-lg hover:bg-purple-400/20 transition-colors w-full sm:w-auto"
+            className="bg-transparent border border-orange-500 text-white font-semibold py-3 px-8 rounded-lg hover:bg-orange-500/20 transition-colors w-full sm:w-auto"
           >
             Submit Your Song
           </button>
@@ -273,7 +273,7 @@ export default function Home() {
                   <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/20 to-transparent" />
                   <div className="absolute bottom-0 left-0 p-6 text-white w-full">
                     <h3 className="text-3xl font-bold">{artist.name}</h3>
-                    <p className="text-sm text-purple-200/90">{artist.genre}</p>
+                    <p className="text-sm text-orange-300/90">{artist.genre}</p>
                   </div>
                 </div>
 
@@ -349,7 +349,7 @@ export default function Home() {
         {/* Call to Action */}
         <div className="text-center mt-12">
           <button 
-            className="bg-purple-600 hover:bg-purple-700 text-white font-semibold py-4 px-10 rounded-lg transition-colors text-lg"
+            className="bg-orange-700 hover:bg-orange-800 text-white font-semibold py-4 px-10 rounded-lg transition-colors text-lg"
             onClick={triggerArtistCardAnimation}
           >
             Limited Time: Vote Now and Collect NFTs!
@@ -389,7 +389,7 @@ export default function Home() {
                     xmlns="http://www.w3.org/2000/svg"
                     viewBox="0 0 20 20"
                     fill="currentColor"
-                    className="w-8 h-8 text-purple-400"
+                    className="w-8 h-8 text-orange-500"
                   >
                     <path
                       d="M10.894 2.553a1 1 0 00-1.789 0l-7 14a1 1 0 001.169 1.409l5-1.429A1 1 0 009 15.571V11a1 1 0 112 0v4.571a1 1 0 00.725.962l5 1.428a1 1 0 001.17-1.408l-7-14z"
@@ -398,7 +398,7 @@ export default function Home() {
                   <span className="text-xl font-bold text-white">LaunchThatSong</span>
                 </Link>
                 <nav className="hidden md:flex items-center gap-6">
-                  <Link href="/#connect" className="hover:text-purple-300 transition-colors" onClick={() => setIsModalOpen(false)}>
+                  <Link href="/#connect" className="hover:text-orange-400 transition-colors" onClick={() => setIsModalOpen(false)}>
                     Connect
                   </Link>
                   <button 
@@ -411,7 +411,7 @@ export default function Home() {
                         }
                       }, 100)
                     }}
-                    className="hover:text-purple-300 transition-colors bg-transparent border-none text-white cursor-pointer"
+                    className="hover:text-orange-400 transition-colors bg-transparent border-none text-white cursor-pointer"
                   >
                     How It Works
                   </button>
@@ -422,7 +422,7 @@ export default function Home() {
                   >
                     Profile
                   </Link>
-                  <Link href="/cart" className="relative hover:text-purple-300 transition-colors" onClick={() => setIsModalOpen(false)}>
+                  <Link href="/cart" className="relative hover:text-orange-400 transition-colors" onClick={() => setIsModalOpen(false)}>
                     <svg
                       xmlns="http://www.w3.org/2000/svg"
                       viewBox="0 0 24 24"
@@ -432,7 +432,7 @@ export default function Home() {
                       <path d="M2.25 2.25a.75.75 0 000 1.5h1.386c.17 0 .318.114.362.278l2.558 9.592a3.752 3.752 0 00-2.806 3.63c0 .414.336.75.75.75h15.75a.75.75 0 000-1.5H5.378A2.25 2.25 0 017.5 15h11.218a.75.75 0 00.674-.421 60.358 60.358 0 002.46-5.23c.18-.487.22-1.01.12-1.521a.75.75 0 00-.728-.654h-12.21l-1.581-5.927A.75.75 0 003.636 2.25H2.25zM3.75 20.25a1.5 1.5 0 113 0 1.5 1.5 0 01-3 0zM16.5 20.25a1.5 1.5 0 113 0 1.5 1.5 0 01-3 0z" />
                     </svg>
                     {cartItems.length > 0 && (
-                      <span className="absolute -top-2 -right-2 bg-purple-600 text-white text-xs font-bold rounded-full h-5 w-5 flex items-center justify-center">
+                      <span className="absolute -top-2 -right-2 bg-orange-700 text-white text-xs font-bold rounded-full h-5 w-5 flex items-center justify-center">
                         {cartItems.reduce((acc, item) => acc + item.voteCount, 0)}
                       </span>
                     )}

@@ -1,15 +1,8 @@
 @import "tailwindcss";
 
-:root {
+@theme inline {
   --background: #000000;
   --foreground: #ffffff;
-}
-
-@theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
 }
 
 @media (prefers-color-scheme: dark) {
@@ -24,6 +17,37 @@ body {
   background-image: linear-gradient(145deg, #0f172a 0%, #1e3a8a 50%, #1e40af 100%);
   color: var(--foreground);
   font-family: Arial, Helvetica, sans-serif;
+}
+
+@layer utilities {
+  .text-balance {
+    text-wrap: balance;
+  }
+}
+
+@keyframes twinkle {
+  0%, 100% { opacity: 0.5; transform: scale(0.8); }
+  50% { opacity: 1; transform: scale(1); }
+}
+
+@keyframes move-planet {
+  0% { transform: translateY(0) translateX(0) scale(1); }
+  50% { transform: translateY(-20px) translateX(10px) scale(1.05); }
+  100% { transform: translateY(0) translateX(0) scale(1); }
+}
+
+.star {
+  position: absolute;
+  background-color: white;
+  border-radius: 50%;
+  animation: twinkle 4s infinite ease-in-out;
+}
+
+.planet {
+  position: absolute;
+  border-radius: 50%;
+  animation: move-planet 20s infinite ease-in-out;
+  box-shadow: 0 0 20px 5px rgba(255, 255, 255, 0.2);
 }
 
 @keyframes cardPulse {

@@ -1,8 +1,8 @@
 'use client'
 
-import { createContext, useContext, useState, ReactNode } from 'react'
+import { createContext, useContext, useState, useEffect, ReactNode } from 'react'
 
-type CartItem = {
+export type CartItem = {
   songId: string
   songTitle: string
   artistId: string
@@ -22,17 +22,28 @@ const CartContext = createContext<CartContextType | undefined>(undefined)
 export const CartProvider = ({ children }: { children: ReactNode }) => {
   const [cartItems, setCartItems] = useState<CartItem[]>([])
 
+  useEffect(() => {
+    const storedCart = localStorage.getItem('cart')
+    if (storedCart) {
+      setCartItems(JSON.parse(storedCart))
+    }
+  }, [])
+
+  useEffect(() => {
+    localStorage.setItem('cart', JSON.stringify(cartItems))
+  }, [cartItems])
+
   const addToCart = (item: CartItem) => {
     setCartItems(prev => {
       const existing = prev.find(i => i.songId === item.songId)
       if (existing) {
         return prev.map(i =>
           i.songId === item.songId
-            ? { ...i, voteCount: i.voteCount + item.voteCount }
+            ? { ...i, voteCount: i.voteCount + (item.voteCount || 1) }
             : i
         )
       }
-      return [...prev, item]
+      return [...prev, { ...item, voteCount: item.voteCount || 1 }]
     })
   }
 

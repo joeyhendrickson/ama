@@ -3,7 +3,7 @@ import nodemailer from 'nodemailer'
 
 export async function POST(request: NextRequest) {
   try {
-    const { songId, artistId, comment, timestamp, songTitle, artistName } = await request.json()
+    const { comment, audioData, songTitle, artistName } = await request.json()
 
     // Create transporter
     const transporter = nodemailer.createTransport({
@@ -13,6 +13,9 @@ export async function POST(request: NextRequest) {
         pass: process.env.EMAIL_PASS
       }
     })
+
+    // Convert base64 audio to buffer
+    const audioBuffer = Buffer.from(audioData.split(',')[1], 'base64')
 
     // Email content
     const mailOptions = {
@@ -27,12 +30,15 @@ export async function POST(request: NextRequest) {
             <h3 style="color: #1e40af; margin-top: 0;">Song Details</h3>
             <p><strong>Song:</strong> ${songTitle}</p>
             <p><strong>Artist:</strong> ${artistName}</p>
-            <p><strong>Date:</strong> ${new Date(timestamp).toLocaleString()}</p>
+            <p><strong>Date:</strong> ${new Date().toLocaleString()}</p>
           </div>
           
           <div style="background: #1e40af; color: white; padding: 20px; border-radius: 8px; margin: 20px 0;">
             <h3 style="margin-top: 0;">Voice Comment</h3>
             <p style="font-style: italic; line-height: 1.6;">"${comment}"</p>
+            <p style="margin-top: 15px; font-size: 14px;">
+              <strong>Audio recording attached below</strong>
+            </p>
           </div>
           
           <div style="text-align: center; margin-top: 30px;">
@@ -41,7 +47,14 @@ export async function POST(request: NextRequest) {
             </p>
           </div>
         </div>
-      `
+      `,
+      attachments: [
+        {
+          filename: `voice-comment-${songTitle}-${Date.now()}.webm`,
+          content: audioBuffer,
+          contentType: 'audio/webm'
+        }
+      ]
     }
 
     // Send email
