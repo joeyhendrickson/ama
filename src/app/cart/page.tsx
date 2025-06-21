@@ -51,46 +51,55 @@ export default function CartPage() {
 
   const totalPrice = songs.reduce((total, song) => {
     const count = cart[song.id] || 0
-    return total + count * (song.vote_price || 1)
+    const price = song.vote_price || 1 // Default to $1 if no price set
+    return total + (count * price)
   }, 0)
 
   const handleCheckout = () => {
     alert('Checkout not yet implemented.')
   }
 
-  if (loading) return <p className="p-4">Loading your cart...</p>
+  if (loading) return <p className="p-4 text-white">Loading your cart...</p>
 
   return (
-    <main className="p-8 sm:p-16 bg-white min-h-screen">
-      <h1 className="text-3xl font-bold mb-8">Your Voting Cart</h1>
+    <main className="p-8 sm:p-16 bg-black min-h-screen">
+      <h1 className="text-3xl font-bold mb-8 text-white">Your Voting Cart</h1>
 
       {songs.length === 0 ? (
-        <p className="text-gray-600">Your cart is empty.</p>
+        <div className="bg-white p-6 rounded-lg">
+          <p className="text-gray-600">Your cart is empty.</p>
+        </div>
       ) : (
         <>
           <ul className="mb-6 space-y-4">
-            {songs.map((song) => (
-              <li key={song.id} className="border p-4 rounded shadow-sm">
-                <h2 className="text-xl font-semibold mb-2">{song.title}</h2>
-                <p className="text-sm text-gray-700">
-                  Votes: {cart[song.id]} × ${song.vote_price.toFixed(2)} = ${(
-                    cart[song.id] * song.vote_price
-                  ).toFixed(2)}
-                </p>
-                <p className="text-sm text-gray-500">
-                  Current: {song.current_votes} / {song.vote_goal || 'Goal not set'}
-                </p>
-              </li>
-            ))}
+            {songs.map((song) => {
+              const count = cart[song.id] || 0
+              const price = song.vote_price || 1
+              const subtotal = count * price
+              
+              return (
+                <li key={song.id} className="bg-white border p-4 rounded shadow-sm">
+                  <h2 className="text-xl font-semibold mb-2 text-black">{song.title}</h2>
+                  <p className="text-sm text-gray-700">
+                    Votes: {count} × ${price.toFixed(2)} = ${subtotal.toFixed(2)}
+                  </p>
+                  <p className="text-sm text-gray-500">
+                    Current: {song.current_votes || 0} / {song.vote_goal || 'Goal not set'}
+                  </p>
+                </li>
+              )
+            })}
           </ul>
 
-          <div className="text-right text-lg font-medium mb-6">
-            Total: ${totalPrice.toFixed(2)}
+          <div className="bg-white p-6 rounded-lg mb-6 border-2 border-gray-300">
+            <div className="text-left text-lg font-bold text-black !important">
+              <span className="text-black">Total: ${totalPrice.toFixed(2)}</span>
+            </div>
           </div>
 
           <button
             onClick={handleCheckout}
-            className="bg-black text-white px-6 py-3 rounded hover:bg-gray-800"
+            className="bg-green-600 text-white px-6 py-3 rounded hover:bg-green-700"
           >
             Complete Purchase
           </button>

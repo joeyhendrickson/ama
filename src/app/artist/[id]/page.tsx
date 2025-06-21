@@ -25,14 +25,35 @@ interface Song {
 }
 
 export default function ArtistPage() {
+  console.log('ArtistPage component rendering')
+  
   const { id } = useParams()
   const router = useRouter()
+  console.log('Artist ID:', id)
+  
   const [artist, setArtist] = useState<Artist | null>(null)
   const [songs, setSongs] = useState<Song[]>([])
   const [error, setError] = useState<string | null>(null)
   const [cart, setCart] = useState<{ [songId: string]: number }>({})
+  const [allArtists, setAllArtists] = useState<Artist[]>([])
+  const [currentArtistIndex, setCurrentArtistIndex] = useState<number>(-1)
+  const [flippedCards, setFlippedCards] = useState<{ [songId: string]: boolean }>({})
+  const [currentlyPlaying, setCurrentlyPlaying] = useState<string | null>(null)
 
   useEffect(() => {
+    const fetchAllArtists = async () => {
+      const { data, error } = await supabase
+        .from('artists')
+        .select('id, name, bio, image_url')
+        .order('name')
+
+      if (error) {
+        console.error('Error fetching all artists:', error.message)
+      } else {
+        setAllArtists(data || [])
+      }
+    }
+
     const fetchArtist = async () => {
       const { data, error } = await supabase
         .from('artists')
@@ -70,11 +91,19 @@ export default function ArtistPage() {
     }
 
     if (id) {
+      fetchAllArtists()
       fetchArtist()
       fetchSongs()
       loadCart()
     }
   }, [id])
+
+  useEffect(() => {
+    if (artist && allArtists.length > 0) {
+      const index = allArtists.findIndex(a => a.id === artist.id)
+      setCurrentArtistIndex(index)
+    }
+  }, [artist, allArtists])
 
   const addVote = (songId: string) => {
     setCart((prev) => {
@@ -94,101 +123,406 @@ export default function ArtistPage() {
     })
   }
 
+  const getVotePercentage = (voteCount: number, voteGoal: number) => {
+    return Math.min(Math.round((voteCount / voteGoal) * 100), 100)
+  }
+
+  const navigateToArtist = (artistId: string) => {
+    router.push(`/artist/${artistId}`)
+  }
+
+  const getPreviousArtist = () => {
+    if (currentArtistIndex <= 0) return null
+    return allArtists[currentArtistIndex - 1]
+  }
+
+  const getNextArtist = () => {
+    if (currentArtistIndex >= allArtists.length - 1) return null
+    return allArtists[currentArtistIndex + 1]
+  }
+
+  const toggleCardFlip = (songId: string) => {
+    setFlippedCards(prev => ({
+      ...prev,
+      [songId]: !prev[songId]
+    }))
+  }
+
+  const handlePlayAudio = (songId: string) => {
+    // Stop any currently playing audio
+    if (currentlyPlaying && currentlyPlaying !== songId) {
+      const prevAudio = document.getElementById(`audio-${currentlyPlaying}`) as HTMLAudioElement
+      if (prevAudio) {
+        prevAudio.pause()
+        prevAudio.currentTime = 0
+      }
+    }
+
+    const audio = document.getElementById(`audio-${songId}`) as HTMLAudioElement
+    if (audio) {
+      if (audio.paused) {
+        audio.play()
+        setCurrentlyPlaying(songId)
+      } else {
+        audio.pause()
+        setCurrentlyPlaying(null)
+      }
+    }
+  }
+
+  const handleAudioEnded = (songId: string) => {
+    setCurrentlyPlaying(null)
+    const progress = document.getElementById(`progress-${songId}`)
+    if (progress) {
+      progress.style.width = '0%'
+    }
+  }
+
   if (error) {
-    return <p className="text-red-600 p-4">Error: {error}</p>
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-blue-900 via-blue-800 to-blue-900 flex items-center justify-center">
+        <div className="bg-red-900/50 backdrop-blur-md border border-red-400/30 rounded-xl p-6 text-red-200">
+          Error: {error}
+        </div>
+      </div>
+    )
   }
 
   if (!artist) {
-    return <p className="p-4">Loading artist...</p>
-  }
-
-  return (
-    <main className="p-8 sm:p-16 bg-white min-h-screen">
-      <Link href="/" className="text-blue-600 underline mb-6 inline-block">
-        ← Back to Home
-      </Link>
-
-      <div className="flex flex-col sm:flex-row items-center sm:items-start gap-8 mb-12">
-        {artist.image_url ? (
-          <Image
-            src={artist.image_url}
-            alt={artist.name}
-            width={200}
-            height={200}
-            className="object-cover rounded-lg"
-          />
-        ) : (
-          <div className="w-[200px] h-[200px] bg-gray-200 rounded-lg flex items-center justify-center text-gray-500">
-            No Image
-          </div>
-        )}
-
-        <div>
-          <h1 className="text-4xl font-bold text-gray-900">{artist.name}</h1>
-          <p className="text-gray-700 mt-2">{artist.bio}</p>
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-blue-900 via-blue-800 to-blue-900 flex items-center justify-center">
+        <div className="bg-blue-800/50 backdrop-blur-md border border-blue-400/30 rounded-xl p-6 text-white">
+          Loading artist...
         </div>
       </div>
+    )
+  }
 
-      <h2 className="text-2xl font-semibold mb-6">Vote for Songs</h2>
+  // Add a simple test render
+  console.log('About to render main component')
+  
+  const previousArtist = getPreviousArtist()
+  const nextArtist = getNextArtist()
 
-      <div className="grid grid-cols-1 gap-8">
-        {songs.map((song) => (
-          <div key={song.id} className="border p-6 rounded shadow-sm">
-            <h3 className="text-xl font-semibold mb-2">{song.title}</h3>
-
-            {song.audio_url ? (
-              <audio controls className="mb-3 w-full">
-                <source src={song.audio_url} type="audio/mpeg" />
-                Your browser does not support the audio element.
-              </audio>
-            ) : (
-              <p className="text-sm text-gray-500 mb-3">No audio uploaded</p>
-            )}
-
-            <p className="text-sm text-gray-600 mb-2">
-              Votes: {(song.vote_count || 0) + (cart[song.id] || 0)} / {song.vote_goal || 'Goal not set'}
-            </p>
-
-            <div className="flex items-center gap-3 mb-2">
-              <button
-                onClick={() => removeVote(song.id)}
-                disabled={!cart[song.id]}
-                className="px-3 py-1 bg-gray-300 rounded disabled:opacity-50"
-              >
-                −
-              </button>
-              <span>{cart[song.id] || 0}</span>
-              <button
-                onClick={() => addVote(song.id)}
-                className="px-3 py-1 bg-black text-white rounded hover:bg-gray-800"
-              >
-                ＋
-              </button>
-            </div>
-          </div>
-        ))}
-      </div>
-
-      <div className="mt-10 p-6 border rounded bg-gray-50">
-        <h3 className="text-xl font-semibold mb-3">Cart Summary</h3>
-        <ul className="mb-4">
-          {Object.entries(cart).map(([songId, count]) => {
-            const song = songs.find((s) => s.id === songId)
-            return song ? (
-              <li key={songId} className="text-gray-700">
-                {song.title} × {count}
-              </li>
-            ) : null
-          })}
-        </ul>
-
-        <button
-          onClick={() => router.push('/cart')}
-          className="bg-green-600 text-white px-4 py-2 rounded hover:bg-green-700"
+  return (
+    <div className="min-h-screen bg-gradient-to-br from-blue-900 via-blue-800 to-blue-900">
+      {/* Left Arrow - Previous Artist or Home */}
+      {previousArtist ? (
+        <button 
+          onClick={() => navigateToArtist(previousArtist.id)}
+          className="fixed left-4 top-1/2 transform -translate-y-1/2 z-50 inline-flex items-center justify-center w-12 h-12 bg-white backdrop-blur-md border border-white/30 rounded-full text-blue-800 hover:text-blue-900 hover:bg-gray-100 transition-all duration-300 group shadow-lg"
         >
-          Proceed to Checkout
+          <svg
+            xmlns="http://www.w3.org/2000/svg"
+            viewBox="0 0 20 20"
+            fill="currentColor"
+            className="w-6 h-6 group-hover:-translate-x-1 transition-transform"
+          >
+            <path
+              fillRule="evenodd"
+              d="M12.79 5.23a.75.75 0 01-.02 1.06L8.832 10l3.938 3.71a.75.75 0 11-1.04 1.08l-4.5-4.25a.75.75 0 010-1.08l4.5-4.25a.75.75 0 011.06.02z"
+              clipRule="evenodd"
+            />
+          </svg>
         </button>
+      ) : (
+        <Link 
+          href="/" 
+          className="fixed left-4 top-1/2 transform -translate-y-1/2 z-50 inline-flex items-center justify-center w-12 h-12 bg-white backdrop-blur-md border border-white/30 rounded-full text-blue-800 hover:text-blue-900 hover:bg-gray-100 transition-all duration-300 group shadow-lg"
+        >
+          <svg
+            xmlns="http://www.w3.org/2000/svg"
+            viewBox="0 0 20 20"
+            fill="currentColor"
+            className="w-6 h-6 group-hover:-translate-x-1 transition-transform"
+          >
+            <path
+              fillRule="evenodd"
+              d="M12.79 5.23a.75.75 0 01-.02 1.06L8.832 10l3.938 3.71a.75.75 0 11-1.04 1.08l-4.5-4.25a.75.75 0 010-1.08l4.5-4.25a.75.75 0 011.06.02z"
+              clipRule="evenodd"
+            />
+          </svg>
+        </Link>
+      )}
+
+      {/* Right Arrow - Next Artist */}
+      {nextArtist && (
+        <button 
+          onClick={() => navigateToArtist(nextArtist.id)}
+          className="fixed right-4 top-1/2 transform -translate-y-1/2 z-50 inline-flex items-center justify-center w-12 h-12 bg-white backdrop-blur-md border border-white/30 rounded-full text-blue-800 hover:text-blue-900 hover:bg-gray-100 transition-all duration-300 group shadow-lg"
+        >
+          <svg
+            xmlns="http://www.w3.org/2000/svg"
+            viewBox="0 0 20 20"
+            fill="currentColor"
+            className="w-6 h-6 group-hover:translate-x-1 transition-transform"
+          >
+            <path
+              fillRule="evenodd"
+              d="M7.21 14.77a.75.75 0 01.02-1.06L11.168 10 7.23 6.29a.75.75 0 111.04-1.08l4.5 4.25a.75.75 0 010 1.08l-4.5 4.25a.75.75 0 01-1.06-.02z"
+              clipRule="evenodd"
+            />
+          </svg>
+        </button>
+      )}
+
+      {/* Header */}
+      <div className="container mx-auto px-4 py-8">
+        {/* Artist Info */}
+        <div className="flex flex-col lg:flex-row items-center lg:items-start gap-8 mb-12">
+          {artist.image_url ? (
+            <div className="flex justify-center">
+              <div className="relative w-80 h-80 overflow-hidden rounded-2xl shadow-2xl">
+                <Image
+                  src={artist.image_url}
+                  alt={artist.name}
+                  fill
+                  className="object-cover object-top"
+                  sizes="320px"
+                />
+                <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-transparent" />
+              </div>
+            </div>
+          ) : (
+            <div className="w-80 h-80 bg-blue-800/50 backdrop-blur-md border border-blue-400/30 rounded-2xl flex items-center justify-center text-blue-200">
+              No Image
+            </div>
+          )}
+
+          <div className="bg-blue-800/20 backdrop-blur-md border border-blue-400/30 p-8 rounded-2xl flex-1">
+            <h1 className="text-5xl font-bold text-white mb-4">{artist.name}</h1>
+            <p className="text-blue-200 text-lg leading-relaxed">{artist.bio}</p>
+          </div>
+        </div>
+
+        {/* Songs Section */}
+        <div className="mb-12">
+          <h2 className="text-4xl font-bold text-white mb-8 text-center">Vote for Songs</h2>
+
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+            {songs.map((song) => {
+              const totalVotes = (song.vote_count || 0) + (cart[song.id] || 0)
+              const votePercentage = getVotePercentage(totalVotes, song.vote_goal || 100)
+              const isFlipped = flippedCards[song.id] || false
+              const isPlaying = currentlyPlaying === song.id
+              
+              return (
+                <div key={song.id} className="relative group perspective-1000">
+                  {/* Flip Card Container */}
+                  <div 
+                    className={`relative w-full h-96 transition-transform duration-700 transform-style-preserve-3d cursor-pointer ${
+                      isFlipped ? 'rotate-y-180' : ''
+                    }`}
+                    onClick={() => toggleCardFlip(song.id)}
+                  >
+                    {/* Front of Card - Audio Player */}
+                    <div className="absolute inset-0 bg-blue-800/20 backdrop-blur-md border border-blue-400/30 p-6 rounded-2xl shadow-xl hover:shadow-blue-500/20 transition-all backface-hidden">
+                      <h3 className="text-2xl font-bold text-white mb-4 group-hover:text-blue-200 transition-colors">
+                        {song.title}
+                      </h3>
+
+                      {song.audio_url ? (
+                        <div className="mb-6">
+                          <div className="bg-blue-900/30 border border-blue-400/20 rounded-xl p-4">
+                            <div className="flex items-center gap-3 mb-3">
+                              <button 
+                                className="w-10 h-10 bg-black rounded-full flex items-center justify-center text-white hover:bg-gray-800 transition-colors"
+                                onClick={(e) => {
+                                  e.stopPropagation()
+                                  handlePlayAudio(song.id)
+                                }}
+                              >
+                                {isPlaying ? (
+                                  <svg
+                                    xmlns="http://www.w3.org/2000/svg"
+                                    viewBox="0 0 20 20"
+                                    fill="currentColor"
+                                    className="w-5 h-5"
+                                  >
+                                    <path d="M6 3a1 1 0 00-1 1v12a1 1 0 001 1h2a1 1 0 001-1V4a1 1 0 00-1-1H6zM12 3a1 1 0 00-1 1v12a1 1 0 001 1h2a1 1 0 001-1V4a1 1 0 00-1-1h-2z" />
+                                  </svg>
+                                ) : (
+                                  <svg
+                                    xmlns="http://www.w3.org/2000/svg"
+                                    viewBox="0 0 20 20"
+                                    fill="currentColor"
+                                    className="w-5 h-5 ml-0.5"
+                                  >
+                                    <path d="M6.3 2.841A1.5 1.5 0 004 4.11V15.89a1.5 1.5 0 002.3 1.269l9.344-5.89a1.5 1.5 0 000-2.538L6.3 2.84z" />
+                                  </svg>
+                                )}
+                              </button>
+                              <div className="flex-1">
+                                <div className="text-white font-medium text-sm">{song.title}</div>
+                                <div className="text-blue-300 text-xs">
+                                  {isPlaying ? 'Now Playing' : 'Click to play'}
+                                </div>
+                              </div>
+                            </div>
+                            
+                            {/* Custom Progress Bar */}
+                            <div className="relative">
+                              <div className="w-full bg-blue-800/50 rounded-full h-2 overflow-hidden">
+                                <div 
+                                  className="bg-gradient-to-r from-blue-400 to-blue-600 h-2 rounded-full transition-all duration-100 ease-out"
+                                  style={{ width: '0%' }}
+                                  id={`progress-${song.id}`}
+                                />
+                              </div>
+                              <div className="absolute top-0 left-0 w-full h-2 bg-gradient-to-r from-transparent via-white/20 to-transparent opacity-0 hover:opacity-100 transition-opacity cursor-pointer"
+                                   onClick={(e) => {
+                                     e.stopPropagation()
+                                     const audio = document.getElementById(`audio-${song.id}`) as HTMLAudioElement
+                                     const rect = e.currentTarget.getBoundingClientRect()
+                                     const clickX = e.clientX - rect.left
+                                     const percentage = (clickX / rect.width) * 100
+                                     if (audio) {
+                                       audio.currentTime = (percentage / 100) * audio.duration
+                                     }
+                                   }}
+                              />
+                            </div>
+                            
+                            {/* Hidden Audio Element */}
+                            <audio 
+                              id={`audio-${song.id}`}
+                              src={song.audio_url}
+                              onTimeUpdate={(e) => {
+                                const audio = e.target as HTMLAudioElement
+                                const progress = document.getElementById(`progress-${song.id}`)
+                                if (progress && audio.duration) {
+                                  const percentage = (audio.currentTime / audio.duration) * 100
+                                  progress.style.width = `${percentage}%`
+                                }
+                              }}
+                              onEnded={() => handleAudioEnded(song.id)}
+                              className="hidden"
+                            />
+                          </div>
+                        </div>
+                      ) : (
+                        <div className="mb-6 p-4 bg-blue-900/30 border border-blue-400/20 rounded-xl">
+                          <div className="flex items-center gap-3">
+                            <div className="w-10 h-10 bg-gray-600 rounded-full flex items-center justify-center">
+                              <svg
+                                xmlns="http://www.w3.org/2000/svg"
+                                viewBox="0 0 20 20"
+                                fill="currentColor"
+                                className="w-5 h-5 text-gray-400"
+                              >
+                                <path d="M6.3 2.841A1.5 1.5 0 004 4.11V15.89a1.5 1.5 0 002.3 1.269l9.344-5.89a1.5 1.5 0 000-2.538L6.3 2.84z" />
+                              </svg>
+                            </div>
+                            <div>
+                              <div className="text-gray-400 font-medium text-sm">No audio uploaded</div>
+                              <div className="text-gray-500 text-xs">Audio file not available</div>
+                            </div>
+                          </div>
+                        </div>
+                      )}
+
+                      {/* Vote Progress */}
+                      <div className="mb-6">
+                        <div className="flex items-center justify-between text-sm text-blue-200 mb-2">
+                          <span>Votes: {totalVotes} / {song.vote_goal || 'Goal not set'}</span>
+                          <span className="font-bold">{votePercentage}%</span>
+                        </div>
+                        <div className="w-full bg-gray-600/50 rounded-full h-3 overflow-hidden">
+                          <div
+                            className="bg-gradient-to-r from-blue-400 to-blue-600 h-3 rounded-full transition-all duration-1000 ease-out"
+                            style={{ width: `${votePercentage}%` }}
+                          />
+                        </div>
+                        <div className="flex items-center justify-between text-xs text-blue-300 mt-2">
+                          <span>Price per vote: $1.00</span>
+                          <span>Total: ${(cart[song.id] || 0) * 1.00}</span>
+                        </div>
+                      </div>
+
+                      {/* Vote Controls */}
+                      <div className="flex items-center justify-center gap-4 mb-4">
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation()
+                            removeVote(song.id)
+                          }}
+                          disabled={!cart[song.id]}
+                          className="w-12 h-12 bg-black text-white rounded-full hover:bg-gray-800 disabled:opacity-50 disabled:cursor-not-allowed transition-all flex items-center justify-center text-xl font-bold"
+                        >
+                          −
+                        </button>
+                        <span className="text-2xl font-bold text-white min-w-[3rem] text-center">
+                          {cart[song.id] || 0}
+                        </span>
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation()
+                            addVote(song.id)
+                          }}
+                          className="w-12 h-12 bg-black text-white rounded-full hover:bg-gray-800 transition-all flex items-center justify-center text-xl font-bold"
+                        >
+                          ＋
+                        </button>
+                      </div>
+
+                      {/* Flip Hint */}
+                      <div className="text-center text-blue-300 text-sm">
+                        Click outside player to flip card
+                      </div>
+                    </div>
+
+                    {/* Back of Card */}
+                    <div className="absolute inset-0 bg-black backdrop-blur-md border border-gray-600/30 p-6 rounded-2xl shadow-xl rotate-y-180 backface-hidden flex items-center justify-center">
+                      <div className="text-center">
+                        <div className="text-4xl mb-4">📝</div>
+                        <div className="text-white text-lg font-semibold mb-2">Lyrics Coming Soon</div>
+                        <div className="text-gray-400 text-sm">
+                          Click to flip back to player
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              )
+            })}
+          </div>
+        </div>
+
+        {/* Cart Summary */}
+        {Object.keys(cart).length > 0 && (
+          <div className="bg-blue-800/20 backdrop-blur-md border border-blue-400/30 p-8 rounded-2xl">
+            <h3 className="text-2xl font-bold text-white mb-6">Launch Plan</h3>
+            <div className="space-y-3 mb-6">
+              {Object.entries(cart).map(([songId, count]) => {
+                const song = songs.find((s) => s.id === songId)
+                return song ? (
+                  <div key={songId} className="flex justify-between items-center text-blue-200">
+                    <span>{song.title}</span>
+                    <span className="font-bold">× {count} (${count * 1.00})</span>
+                  </div>
+                ) : null
+              })}
+            </div>
+
+            <button
+              onClick={() => router.push('/cart')}
+              className="w-full bg-black text-white font-bold py-4 px-8 rounded-xl hover:bg-gray-800 transition-all duration-300 flex items-center justify-center gap-3"
+            >
+              <svg
+                xmlns="http://www.w3.org/2000/svg"
+                viewBox="0 0 20 20"
+                fill="currentColor"
+                className="w-5 h-5"
+              >
+                <path
+                  d="M10.894 2.553a1 1 0 00-1.789 0l-7 14a1 1 0 001.169 1.409l5-1.429A1 1 0 009 15.571V11a1 1 0 112 0v4.571a1 1 0 00.725.962l5 1.428a1 1 0 001.17-1.408l-7-14z"
+                />
+              </svg>
+              Proceed to Blast Off
+            </button>
+          </div>
+        )}
       </div>
-    </main>
+    </div>
   )
 }
