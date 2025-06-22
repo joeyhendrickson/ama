@@ -4,7 +4,9 @@
 
 import { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
+import Link from 'next/link'
 import { supabase } from '@/lib/supabaseClient'
+import { useCart, CartItem } from '@/context/CartContext'
 
 interface Song {
   id: string
@@ -12,99 +14,359 @@ interface Song {
   vote_price: number
   current_votes: number
   vote_goal: number
+  artist_id: string
+}
+
+interface Artist {
+  id: string
+  name: string
 }
 
 export default function CartPage() {
   const router = useRouter()
+  const { cartItems, removeFromCart, clearCart, lastVisitedArtist, removeVoiceComment } = useCart()
   const [songs, setSongs] = useState<Song[]>([])
-  const [cart, setCart] = useState<{ [songId: string]: number }>({})
+  const [artists, setArtists] = useState<{ [key: string]: Artist }>({})
   const [loading, setLoading] = useState(true)
+  const [playingComment, setPlayingComment] = useState<string | null>(null)
 
   useEffect(() => {
-    const savedCart = localStorage.getItem('cart')
-    const parsedCart = savedCart ? JSON.parse(savedCart) : {}
-    setCart(parsedCart)
-
     const fetchSongs = async () => {
-      const songIds = Object.keys(parsedCart)
-      if (songIds.length === 0) {
+      if (cartItems.length === 0) {
         setSongs([])
         setLoading(false)
         return
       }
 
+      const songIds = cartItems.map(item => item.songId)
       const { data, error } = await supabase
         .from('songs')
-        .select('id, title, vote_price, current_votes, vote_goal')
+        .select('id, title, vote_price, current_votes, vote_goal, artist_id')
         .in('id', songIds)
 
       if (error) {
         console.error('Error fetching songs:', error.message)
       } else {
         setSongs(data || [])
+        
+        // Fetch artist information for each song
+        const artistIds = [...new Set(data?.map(song => song.artist_id) || [])]
+        if (artistIds.length > 0) {
+          const { data: artistData, error: artistError } = await supabase
+            .from('artists')
+            .select('id, name')
+            .in('id', artistIds)
+
+          if (!artistError && artistData) {
+            const artistMap: { [key: string]: Artist } = {}
+            artistData.forEach(artist => {
+              artistMap[artist.id] = artist
+            })
+            setArtists(artistMap)
+          }
+        }
       }
       setLoading(false)
     }
 
     fetchSongs()
-  }, [])
+  }, [cartItems])
 
-  const totalPrice = songs.reduce((total, song) => {
-    const count = cart[song.id] || 0
-    const price = song.vote_price || 1 // Default to $1 if no price set
-    return total + (count * price)
+  const totalPrice = cartItems.reduce((total, item) => {
+    return total + (item.voteCount * item.votePrice)
   }, 0)
 
-  const handleCheckout = () => {
-    alert('Checkout not yet implemented.')
+  const handleCheckout = async () => {
+    try {
+      // Prepare items for checkout
+      const items = cartItems.map(item => ({
+        songId: item.songId,
+        title: item.songTitle,
+        vote_price: item.votePrice,
+        quantity: item.voteCount
+      }))
+
+      // Get voice comment IDs
+      const voiceCommentIds = cartItems
+        .filter(item => item.voiceComment?.commentId)
+        .map(item => item.voiceComment!.commentId!)
+
+      const response = await fetch('/api/stripe/checkout', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          items,
+          voiceCommentIds
+        }),
+      })
+
+      if (!response.ok) {
+        throw new Error('Failed to create checkout session')
+      }
+
+      const { url } = await response.json()
+      if (url) {
+        window.location.href = url
+      }
+    } catch (error) {
+      console.error('Checkout error:', error)
+      alert('Failed to start checkout. Please try again.')
+    }
   }
 
-  if (loading) return <p className="p-4 text-white">Loading your cart...</p>
+  const handleRemoveItem = (songId: string) => {
+    removeFromCart(songId)
+  }
+
+  const handleClearCart = () => {
+    if (confirm('Are you sure you want to clear your cart?')) {
+      clearCart()
+    }
+  }
+
+  const handlePlayVoiceComment = (songId: string) => {
+    const item = cartItems.find(i => i.songId === songId)
+    if (!item?.voiceComment) return
+
+    if (playingComment === songId) {
+      setPlayingComment(null)
+      return
+    }
+
+    // Stop any currently playing audio
+    if (playingComment) {
+      setPlayingComment(null)
+    }
+
+    // Create and play audio
+    const audio = new Audio(item.voiceComment.audioData)
+    audio.onended = () => setPlayingComment(null)
+    audio.play()
+    setPlayingComment(songId)
+  }
+
+  const handleRemoveVoiceComment = (songId: string) => {
+    if (confirm('Are you sure you want to remove this voice comment?')) {
+      removeVoiceComment(songId)
+    }
+  }
+
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-[#040a12] flex items-center justify-center">
+        <div className="bg-blue-800/20 backdrop-blur-md border border-blue-400/30 p-8 rounded-2xl">
+          <p className="text-white text-lg">Loading your rocket fuel...</p>
+        </div>
+      </div>
+    )
+  }
 
   return (
-    <main className="p-8 sm:p-16 bg-black min-h-screen">
-      <h1 className="text-3xl font-bold mb-8 text-white">Your Voting Cart</h1>
-
-      {songs.length === 0 ? (
-        <div className="bg-white p-6 rounded-lg">
-          <p className="text-gray-600">Your cart is empty.</p>
-        </div>
-      ) : (
-        <>
-          <ul className="mb-6 space-y-4">
-            {songs.map((song) => {
-              const count = cart[song.id] || 0
-              const price = song.vote_price || 1
-              const subtotal = count * price
-              
-              return (
-                <li key={song.id} className="bg-white border p-4 rounded shadow-sm">
-                  <h2 className="text-xl font-semibold mb-2 text-black">{song.title}</h2>
-                  <p className="text-sm text-gray-700">
-                    Votes: {count} × ${price.toFixed(2)} = ${subtotal.toFixed(2)}
-                  </p>
-                  <p className="text-sm text-gray-500">
-                    Current: {song.current_votes || 0} / {song.vote_goal || 'Goal not set'}
-                  </p>
-                </li>
-              )
-            })}
-          </ul>
-
-          <div className="bg-white p-6 rounded-lg mb-6 border-2 border-gray-300">
-            <div className="text-left text-lg font-bold text-black !important">
-              <span className="text-black">Total: ${totalPrice.toFixed(2)}</span>
-            </div>
-          </div>
-
-          <button
-            onClick={handleCheckout}
-            className="bg-green-600 text-white px-6 py-3 rounded hover:bg-green-700"
+    <div className="min-h-screen bg-[#040a12]">
+      {/* Back Button - Middle Left */}
+      {lastVisitedArtist ? (
+        <Link 
+          href={`/artist/${lastVisitedArtist}`}
+          className="fixed left-4 top-1/2 transform -translate-y-1/2 z-50 inline-flex items-center justify-center w-12 h-12 bg-white backdrop-blur-md border border-white/30 rounded-full text-blue-800 hover:text-blue-900 hover:bg-gray-100 transition-all duration-300 group shadow-lg"
+        >
+          <svg
+            xmlns="http://www.w3.org/2000/svg"
+            viewBox="0 0 20 20"
+            fill="currentColor"
+            className="w-6 h-6 group-hover:-translate-x-1 transition-transform"
           >
-            Complete Purchase
-          </button>
-        </>
+            <path
+              fillRule="evenodd"
+              d="M12.79 5.23a.75.75 0 01-.02 1.06L8.832 10l3.938 3.71a.75.75 0 11-1.04 1.08l-4.5-4.25a.75.75 0 010-1.08l4.5-4.25a.75.75 0 011.06.02z"
+              clipRule="evenodd"
+            />
+          </svg>
+        </Link>
+      ) : (
+        <Link 
+          href="/"
+          className="fixed left-4 top-1/2 transform -translate-y-1/2 z-50 inline-flex items-center justify-center w-12 h-12 bg-white backdrop-blur-md border border-white/30 rounded-full text-blue-800 hover:text-blue-900 hover:bg-gray-100 transition-all duration-300 group shadow-lg"
+        >
+          <svg
+            xmlns="http://www.w3.org/2000/svg"
+            viewBox="0 0 20 20"
+            fill="currentColor"
+            className="w-6 h-6 group-hover:-translate-x-1 transition-transform"
+          >
+            <path
+              fillRule="evenodd"
+              d="M12.79 5.23a.75.75 0 01-.02 1.06L8.832 10l3.938 3.71a.75.75 0 11-1.04 1.08l-4.5-4.25a.75.75 0 010-1.08l4.5-4.25a.75.75 0 011.06.02z"
+              clipRule="evenodd"
+            />
+          </svg>
+        </Link>
       )}
-    </main>
+
+      <div className="container mx-auto px-4 py-8">
+        {/* Header */}
+        <div className="text-center mb-12">
+          <h1 className="text-5xl font-bold text-white mb-4">🚀 Your Rocket Fuel</h1>
+          <p className="text-blue-200 text-lg">Ready to launch these songs to the stars!</p>
+        </div>
+
+        {cartItems.length === 0 ? (
+          <div className="bg-blue-800/20 backdrop-blur-md border border-blue-400/30 p-8 rounded-2xl text-center">
+            <div className="text-blue-200 text-lg mb-4">Your rocket fuel tank is empty!</div>
+            <Link 
+              href="/"
+              className="inline-flex items-center px-6 py-3 bg-gradient-to-r from-red-600 to-orange-500 hover:from-red-700 hover:to-orange-600 text-white font-semibold rounded-xl transition-all duration-300 border-2 border-red-400/80 shadow-lg shadow-orange-500/30"
+            >
+              <svg
+                xmlns="http://www.w3.org/2000/svg"
+                viewBox="0 0 20 20"
+                fill="currentColor"
+                className="w-5 h-5 mr-2"
+              >
+                <path d="M10.75 4.75a.75.75 0 00-1.5 0v4.5h-4.5a.75.75 0 000 1.5h4.5v4.5a.75.75 0 001.5 0v-4.5h4.5a.75.75 0 000-1.5h-4.5v-4.5z" />
+              </svg>
+              Add Some Fuel
+            </Link>
+          </div>
+        ) : (
+          <>
+            {/* Cart Items */}
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 mb-8">
+              {cartItems.map((item) => {
+                const song = songs.find(s => s.id === item.songId)
+                const artist = artists[item.artistId]
+                const hasVoiceComment = !!item.voiceComment
+                
+                return (
+                  <div key={item.songId} className="bg-blue-900/30 border border-blue-400/20 rounded-xl p-4">
+                    <div className="flex justify-between items-start mb-3">
+                      <div className="flex-1 min-w-0">
+                        <div className="text-white font-semibold truncate">{item.songTitle}</div>
+                        {artist && (
+                          <div className="text-blue-300 text-sm">by {artist.name}</div>
+                        )}
+                        <div className="text-blue-300 text-sm">Votes: {item.voteCount}</div>
+                      </div>
+                      <div className="text-right ml-4">
+                        <div className="text-yellow-300 font-bold text-lg">
+                          ${(item.voteCount * item.votePrice).toFixed(2)}
+                        </div>
+                        <button
+                          onClick={() => handleRemoveItem(item.songId)}
+                          className="text-red-400 hover:text-red-300 transition-colors p-1 mt-1"
+                        >
+                          <svg
+                            xmlns="http://www.w3.org/2000/svg"
+                            viewBox="0 0 20 20"
+                            fill="currentColor"
+                            className="w-4 h-4"
+                          >
+                            <path d="M6.28 5.22a.75.75 0 00-1.06 1.06L8.94 10l-3.72 3.72a.75.75 0 101.06 1.06L10 11.06l3.72 3.72a.75.75 0 101.06-1.06L11.06 10l3.72-3.72a.75.75 0 00-1.06-1.06L10 8.94 6.28 5.22z" />
+                          </svg>
+                        </button>
+                      </div>
+                    </div>
+
+                    {/* Voice Comment Section */}
+                    {hasVoiceComment && (
+                      <div className="mt-3 p-3 bg-green-900/30 border border-green-400/30 rounded-lg">
+                        <div className="flex items-center justify-between mb-2">
+                          <div className="flex items-center gap-2">
+                            <div className="text-green-400">🎤</div>
+                            <span className="text-green-300 text-sm font-medium">Voice Comment</span>
+                          </div>
+                          <button
+                            onClick={() => handleRemoveVoiceComment(item.songId)}
+                            className="text-red-400 hover:text-red-300 transition-colors p-1"
+                          >
+                            <svg
+                              xmlns="http://www.w3.org/2000/svg"
+                              viewBox="0 0 20 20"
+                              fill="currentColor"
+                              className="w-3 h-3"
+                            >
+                              <path d="M6.28 5.22a.75.75 0 00-1.06 1.06L8.94 10l-3.72 3.72a.75.75 0 101.06 1.06L10 11.06l3.72 3.72a.75.75 0 101.06-1.06L11.06 10l3.72-3.72a.75.75 0 00-1.06-1.06L10 8.94 6.28 5.22z" />
+                            </svg>
+                          </button>
+                        </div>
+                        <button
+                          onClick={() => handlePlayVoiceComment(item.songId)}
+                          className="w-full bg-green-600 hover:bg-green-700 text-white py-2 px-3 rounded-lg text-sm font-medium transition-colors flex items-center justify-center gap-2"
+                        >
+                          {playingComment === item.songId ? (
+                            <>
+                              <div className="w-3 h-3 bg-white rounded-full animate-pulse"></div>
+                              Playing...
+                            </>
+                          ) : (
+                            <>
+                              <svg
+                                xmlns="http://www.w3.org/2000/svg"
+                                viewBox="0 0 20 20"
+                                fill="currentColor"
+                                className="w-4 h-4"
+                              >
+                                <path d="M6.3 2.841A1.5 1.5 0 004 4.11V15.89a1.5 1.5 0 002.3 1.269l9.344-5.89a1.5 1.5 0 000-2.538L6.3 2.84z" />
+                              </svg>
+                              Play Comment
+                            </>
+                          )}
+                        </button>
+                      </div>
+                    )}
+                  </div>
+                )
+              })}
+            </div>
+
+            {/* Total and Actions */}
+            <div className="bg-blue-800/20 backdrop-blur-md border border-blue-400/30 p-8 rounded-2xl shadow-xl">
+              <div className="flex flex-col sm:flex-row items-center justify-between gap-4">
+                <div className="text-center sm:text-left">
+                  <div className="text-white text-xl font-bold">
+                    Total: ${totalPrice.toFixed(2)}
+                  </div>
+                  <div className="text-blue-300 text-sm">
+                    {cartItems.length} song{cartItems.length !== 1 ? 's' : ''} in your rocket
+                  </div>
+                  {cartItems.some(item => item.voiceComment) && (
+                    <div className="text-green-300 text-sm mt-1">
+                      {cartItems.filter(item => item.voiceComment).length} voice comment{cartItems.filter(item => item.voiceComment).length !== 1 ? 's' : ''} included
+                    </div>
+                  )}
+                </div>
+                
+                <div className="flex flex-col sm:flex-row gap-3">
+                  <button
+                    onClick={handleCheckout}
+                    className="bg-gradient-to-r from-red-600 to-orange-500 hover:from-red-700 hover:to-orange-600 text-white font-bold py-3 px-8 rounded-xl transition-all duration-300 flex items-center justify-center gap-3 border-2 border-red-400/80 shadow-lg shadow-orange-500/30 text-lg"
+                  >
+                    <svg
+                      xmlns="http://www.w3.org/2000/svg"
+                      viewBox="0 0 20 20"
+                      fill="currentColor"
+                      className="w-5 h-5"
+                    >
+                      <path
+                        d="M10.894 2.553a1 1 0 00-1.789 0l-7 14a1 1 0 001.169 1.409l5-1.429A1 1 0 009 15.571V11a1 1 0 112 0v4.571a1 1 0 00.725.962l5 1.428a1 1 0 001.17-1.408l-7-14z"
+                      />
+                    </svg>
+                    Launch Songs
+                  </button>
+                  
+                  <button
+                    onClick={handleClearCart}
+                    className="px-6 py-3 border border-red-400 text-red-400 rounded-xl font-semibold hover:bg-red-400 hover:text-white transition-colors"
+                  >
+                    Clear All
+                  </button>
+                </div>
+              </div>
+            </div>
+          </>
+        )}
+      </div>
+    </div>
   )
 }

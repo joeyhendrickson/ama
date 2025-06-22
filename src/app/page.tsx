@@ -40,6 +40,8 @@ export default function Home() {
   const [formData, setFormData] = useState({
     artistName: '',
     email: '',
+    password: '',
+    confirmPassword: '',
     songName: '',
     songFile: null as File | null,
     bio: '',
@@ -54,8 +56,13 @@ export default function Home() {
 
   useEffect(() => {
     const fetchData = async () => {
-      // Fetch artists
-      const { data: artistsData, error: artistsError } = await supabase.from('artists').select('*')
+      // Fetch artists (only approved ones)
+      const { data: artistsData, error: artistsError } = await supabase
+        .from('artists')
+        .select('*')
+        .eq('status', 'approved')
+        .order('name')
+
       if (artistsError) {
         console.error('Error fetching artists:', artistsError.message)
         setError(artistsError.message)
@@ -81,10 +88,11 @@ export default function Home() {
         setArtists(artistsWithDummyData)
       }
 
-      // Fetch recent songs
+      // Fetch recent songs (only approved ones)
       const { data: songsData, error: songsError } = await supabase
         .from('songs')
         .select('*')
+        .eq('status', 'approved')
         .order('created_at', { ascending: false })
         .limit(5)
       
@@ -118,32 +126,51 @@ export default function Home() {
     setIsSubmitting(true)
 
     try {
+      // Validate passwords match
+      if (formData.password !== formData.confirmPassword) {
+        alert('Passwords do not match')
+        setIsSubmitting(false)
+        return
+      }
+
+      // Validate password length
+      if (formData.password.length < 6) {
+        alert('Password must be at least 6 characters')
+        setIsSubmitting(false)
+        return
+      }
+
       const formDataToSend = new FormData()
       formDataToSend.append('artistName', formData.artistName)
       formDataToSend.append('email', formData.email)
+      formDataToSend.append('password', formData.password)
+      formDataToSend.append('confirmPassword', formData.confirmPassword)
       formDataToSend.append('songName', formData.songName)
       formDataToSend.append('bio', formData.bio)
       formDataToSend.append('soundcloudLink', formData.soundcloudLink)
       formDataToSend.append('website', formData.website)
       formDataToSend.append('message', formData.message)
-      formDataToSend.append('agreeToTerms', formData.agreeToTerms.toString())
       
       if (formData.songFile) {
         formDataToSend.append('songFile', formData.songFile)
       }
 
-      // Send to your email endpoint
-      const response = await fetch('/api/submit-song', {
+      // Send to artist signup endpoint
+      const response = await fetch('/api/artist-signup', {
         method: 'POST',
         body: formDataToSend,
       })
 
-      if (response.ok) {
-        alert('Thank you for your submission! We\'ll get back to you soon.')
+      const result = await response.json()
+
+      if (response.ok && result.success) {
+        alert('Artist account created successfully! Please check your email to confirm your account. You can then login to access your dashboard.')
         setIsModalOpen(false)
         setFormData({
           artistName: '',
           email: '',
+          password: '',
+          confirmPassword: '',
           songName: '',
           songFile: null,
           bio: '',
@@ -153,11 +180,11 @@ export default function Home() {
           agreeToTerms: false
         })
       } else {
-        alert('There was an error submitting your song. Please try again.')
+        alert(result.message || 'There was an error creating your account. Please try again.')
       }
     } catch (error) {
       console.error('Error submitting form:', error)
-      alert('There was an error submitting your song. Please try again.')
+      alert('There was an error creating your account. Please try again.')
     } finally {
       setIsSubmitting(false)
     }
@@ -416,11 +443,11 @@ export default function Home() {
                     How It Works
                   </button>
                   <Link
-                    href="/profile"
+                    href="/login"
                     className="bg-white/10 backdrop-blur-sm border border-white/20 text-white font-semibold py-2 px-4 rounded-full hover:bg-white/20 transition-colors"
                     onClick={() => setIsModalOpen(false)}
                   >
-                    Profile
+                    Login
                   </Link>
                   <Link href="/cart" className="relative hover:text-orange-400 transition-colors" onClick={() => setIsModalOpen(false)}>
                     <svg
@@ -507,6 +534,36 @@ export default function Home() {
                           required
                           className="w-full px-4 py-3 bg-gray-50 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-black focus:border-black text-black placeholder-gray-500 text-base"
                           placeholder="Enter your email"
+                        />
+                      </div>
+
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-2">
+                          Password *
+                        </label>
+                        <input
+                          type="password"
+                          name="password"
+                          value={formData.password}
+                          onChange={handleInputChange}
+                          required
+                          className="w-full px-4 py-3 bg-gray-50 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-black focus:border-black text-black placeholder-gray-500 text-base"
+                          placeholder="Enter your password"
+                        />
+                      </div>
+
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-2">
+                          Confirm Password *
+                        </label>
+                        <input
+                          type="password"
+                          name="confirmPassword"
+                          value={formData.confirmPassword}
+                          onChange={handleInputChange}
+                          required
+                          className="w-full px-4 py-3 bg-gray-50 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-black focus:border-black text-black placeholder-gray-500 text-base"
+                          placeholder="Confirm your password"
                         />
                       </div>
 
@@ -619,7 +676,7 @@ export default function Home() {
                           disabled={isSubmitting}
                           className="w-full py-4 bg-black text-white rounded-xl hover:bg-gray-800 transition-colors disabled:opacity-50 font-semibold text-base"
                         >
-                          {isSubmitting ? 'Submitting...' : 'Submit Song'}
+                          {isSubmitting ? 'Creating Account...' : 'Create Artist Account'}
                         </button>
                         <button
                           type="button"

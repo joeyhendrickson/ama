@@ -46,10 +46,10 @@ export default function Navbar() {
             How It Works
           </button>
           <Link
-            href="/profile"
+            href="/login"
             className="bg-white/10 backdrop-blur-sm border border-white/20 text-white font-semibold py-2 px-4 rounded-full hover:bg-white/20 transition-colors"
           >
-            Profile
+            Login
           </Link>
           <Link href="/cart" className="relative hover:text-orange-400 transition-colors">
             <svg

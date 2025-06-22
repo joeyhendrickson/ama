@@ -30,7 +30,7 @@ export default function ArtistPage() {
   
   const { id } = useParams()
   const router = useRouter()
-  const { cartItems, addToCart, removeFromCart } = useCart()
+  const { cartItems, addToCart, removeFromCart, setLastVisitedArtist, addVoiceComment } = useCart()
 
   const [artist, setArtist] = useState<Artist | null>(null)
   const [songs, setSongs] = useState<Song[]>([])
@@ -46,6 +46,13 @@ export default function ArtistPage() {
   const [showPlayback, setShowPlayback] = useState<{ [songId: string]: boolean }>({})
   const [mediaRecorder, setMediaRecorder] = useState<{ [songId: string]: MediaRecorder | null }>({})
   const [showPaymentModal, setShowPaymentModal] = useState<{ [songId: string]: boolean }>({})
+
+  useEffect(() => {
+    // Track this artist as the last visited
+    if (id) {
+      setLastVisitedArtist(id as string)
+    }
+  }, [id, setLastVisitedArtist])
 
   useEffect(() => {
     const fetchAllArtists = async () => {
@@ -267,45 +274,69 @@ export default function ArtistPage() {
     }
 
     try {
-      // Convert blob to base64 for email
+      // Convert blob to base64
       const reader = new FileReader()
       reader.onload = async () => {
         const base64Audio = reader.result as string
+        const song = songs.find(s => s.id === songId)
         
-        const response = await fetch('/api/submit-voice-comment', {
+        if (!song || !artist) {
+          alert('Song or artist information not found.')
+          return
+        }
+
+        // Save to Supabase first
+        const saveResponse = await fetch('/api/save-voice-comment', {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
           },
           body: JSON.stringify({
             songId,
-            artistId: artist?.id,
-            comment: voiceComments[songId] || 'Voice comment recorded',
+            artistId: artist.id,
+            songTitle: song.title,
+            artistName: artist.name,
             audioData: base64Audio,
-            songTitle: songs.find(s => s.id === songId)?.title,
-            artistName: artist?.name
+            audioFilename: `voice-comment-${song.title}-${Date.now()}.webm`
           }),
         })
 
-        if (response.ok) {
-          alert('Voice comment sent to artist successfully!')
-          // Clear the recording
-          setAudioBlobs(prev => {
-            const newBlobs = { ...prev }
-            delete newBlobs[songId]
-            return newBlobs
-          })
-          setVoiceComments(prev => ({
-            ...prev,
-            [songId]: ''
-          }))
-          setShowPlayback(prev => ({
-            ...prev,
-            [songId]: false
-          }))
-        } else {
-          alert('Failed to send voice comment. Please try again.')
+        if (!saveResponse.ok) {
+          alert('Failed to save voice comment. Please try again.')
+          return
         }
+
+        const saveResult = await saveResponse.json()
+        
+        // Add to cart context
+        const voiceComment = {
+          songId,
+          songTitle: song.title,
+          artistId: artist.id,
+          artistName: artist.name,
+          audioData: base64Audio,
+          audioFilename: `voice-comment-${song.title}-${Date.now()}.webm`,
+          commentId: saveResult.commentId
+        }
+        
+        addVoiceComment(songId, voiceComment)
+
+        // Clear the recording UI
+        setAudioBlobs(prev => {
+          const newBlobs = { ...prev }
+          delete newBlobs[songId]
+          return newBlobs
+        })
+        setVoiceComments(prev => ({
+          ...prev,
+          [songId]: ''
+        }))
+        setShowPlayback(prev => ({
+          ...prev,
+          [songId]: false
+        }))
+
+        alert('Voice comment saved! It will be sent to the artist when you complete your purchase.')
       }
       reader.readAsDataURL(blob)
     } catch (error) {
@@ -421,8 +452,27 @@ export default function ArtistPage() {
         </Link>
       )}
 
-      {/* Right Arrow - Next Artist */}
-      {nextArtist && (
+      {/* Right Arrow - Next Artist or Home */}
+      {id === '51da1dd7-a6b9-4304-a6e9-ee2ebad3f787' ? (
+        // Special case for Joey Hendrickson's page - link to Columbus Songwriters Association
+        <Link 
+          href="/artist/a5590c42-c83f-4ce5-b64e-5ae4c1db1d6c"
+          className="fixed right-4 top-1/2 transform -translate-y-1/2 z-50 inline-flex items-center justify-center w-12 h-12 bg-white backdrop-blur-md border border-white/30 rounded-full text-blue-800 hover:text-blue-900 hover:bg-gray-100 transition-all duration-300 group shadow-lg"
+        >
+          <svg
+            xmlns="http://www.w3.org/2000/svg"
+            viewBox="0 0 20 20"
+            fill="currentColor"
+            className="w-6 h-6 group-hover:translate-x-1 transition-transform"
+          >
+            <path
+              fillRule="evenodd"
+              d="M7.21 14.77a.75.75 0 01.02-1.06L11.168 10 7.23 6.29a.75.75 0 111.04-1.08l4.5 4.25a.75.75 0 010 1.08l-4.5 4.25a.75.75 0 01-1.06-.02z"
+              clipRule="evenodd"
+            />
+          </svg>
+        </Link>
+      ) : nextArtist ? (
         <button 
           onClick={() => navigateToArtist(nextArtist.id)}
           className="fixed right-4 top-1/2 transform -translate-y-1/2 z-50 inline-flex items-center justify-center w-12 h-12 bg-white backdrop-blur-md border border-white/30 rounded-full text-blue-800 hover:text-blue-900 hover:bg-gray-100 transition-all duration-300 group shadow-lg"
@@ -440,6 +490,24 @@ export default function ArtistPage() {
             />
           </svg>
         </button>
+      ) : (
+        <Link 
+          href="/" 
+          className="fixed right-4 top-1/2 transform -translate-y-1/2 z-50 inline-flex items-center justify-center w-12 h-12 bg-white backdrop-blur-md border border-white/30 rounded-full text-blue-800 hover:text-blue-900 hover:bg-gray-100 transition-all duration-300 group shadow-lg"
+        >
+          <svg
+            xmlns="http://www.w3.org/2000/svg"
+            viewBox="0 0 20 20"
+            fill="currentColor"
+            className="w-6 h-6 group-hover:translate-x-1 transition-transform"
+          >
+            <path
+              fillRule="evenodd"
+              d="M7.21 14.77a.75.75 0 01.02-1.06L11.168 10 7.23 6.29a.75.75 0 111.04-1.08l4.5 4.25a.75.75 0 010 1.08l-4.5 4.25a.75.75 0 01-1.06-.02z"
+              clipRule="evenodd"
+            />
+          </svg>
+        </Link>
       )}
 
       {/* Header */}
@@ -759,59 +827,78 @@ export default function ArtistPage() {
         {/* Rocket Fuel Section */}
         {cartItems.length > 0 && (
           <div className="w-full px-4 md:px-8 lg:px-16 py-8">
-            <div 
-              className="relative w-full h-48 md:h-64 lg:h-80 bg-contain bg-no-repeat bg-center"
-              style={{ 
-                backgroundImage: "url('/rocket-background.jpg')",
-                transform: 'scaleX(-1)',
-              }}
-            >
-              <div 
-                className="absolute inset-0"
-                style={{ transform: 'scaleX(-1)' }}
-              >
-                {/* Fuel Line Container */}
-                <div className="absolute" style={{ top: '42%', left: '25%', width: '45%', height: '16%' }}>
-                  <div className="w-full h-full bg-black/30 rounded-full border-2 border-gray-400/50 overflow-hidden backdrop-blur-sm">
-                    <div 
-                      className="h-full bg-gradient-to-r from-yellow-400 via-orange-500 to-red-600 rounded-full transition-all duration-1000 ease-in-out"
-                      style={{ width: `${fuelPercentage}%` }}
-                    ></div>
-                  </div>
-                </div>
-
-                {/* Content Container */}
-                <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-full md:w-1/2 lg:w-1/3 p-4">
-                  <div className="bg-black/40 p-4 rounded-xl backdrop-blur-sm border border-white/10">
-                    <h3 className="text-xl font-bold text-white mb-2 text-center">
-                      Rocket Fuel
-                    </h3>
-                    <div className="space-y-2 mb-3 max-h-24 overflow-y-auto">
-                      {cartItems.map((item) => (
-                        <div key={item.songId} className="flex justify-between items-center text-white text-sm">
-                          <span className="font-medium truncate">{item.songTitle}</span>
-                          <span className="font-bold text-yellow-300 ml-2 whitespace-nowrap">× {item.voteCount} (${(item.voteCount * item.votePrice).toFixed(2)})</span>
-                        </div>
-                      ))}
+            <div className="bg-blue-800/20 backdrop-blur-md border border-blue-400/30 p-8 rounded-2xl shadow-xl">
+              <div className="text-center mb-6">
+                <h3 className="text-3xl font-bold text-white mb-2">
+                  🚀 Your Rocket Fuel
+                </h3>
+                <p className="text-blue-200 text-lg">
+                  Ready to launch these songs to the stars!
+                </p>
+              </div>
+              
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 mb-6 max-h-96 overflow-y-auto">
+                {cartItems.map((item) => (
+                  <div key={item.songId} className="bg-blue-900/30 border border-blue-400/20 rounded-xl p-4 flex justify-between items-center">
+                    <div className="flex-1 min-w-0">
+                      <div className="text-white font-semibold truncate">{item.songTitle}</div>
+                      <div className="text-blue-300 text-sm">Votes: {item.voteCount}</div>
                     </div>
-                    <button
-                      onClick={() => router.push('/cart')}
-                      className="w-full bg-gradient-to-r from-red-600 to-orange-500 hover:from-red-700 hover:to-orange-600 text-white font-bold py-2 px-4 rounded-xl transition-all duration-300 flex items-center justify-center gap-2 border-2 border-red-400/80 shadow-lg shadow-orange-500/30"
-                    >
-                      <svg
-                        xmlns="http://www.w3.org/2000/svg"
-                        viewBox="0 0 20 20"
-                        fill="currentColor"
-                        className="w-4 h-4"
+                    <div className="flex items-center gap-3 ml-4">
+                      <div className="text-right">
+                        <div className="text-yellow-300 font-bold text-lg">
+                          ${(item.voteCount * item.votePrice).toFixed(2)}
+                        </div>
+                      </div>
+                      <button
+                        onClick={() => removeFromCart(item.songId)}
+                        className="bg-red-600 hover:bg-red-700 text-white p-2 rounded-lg transition-colors flex items-center justify-center"
+                        title="Remove from cart"
                       >
-                        <path
-                          d="M10.894 2.553a1 1 0 00-1.789 0l-7 14a1 1 0 001.169 1.409l5-1.429A1 1 0 009 15.571V11a1 1 0 112 0v4.571a1 1 0 00.725.962l5 1.428a1 1 0 001.17-1.408l-7-14z"
-                        />
-                      </svg>
-                      Proceed to Blast Off
-                    </button>
+                        <svg
+                          xmlns="http://www.w3.org/2000/svg"
+                          viewBox="0 0 20 20"
+                          fill="currentColor"
+                          className="w-4 h-4"
+                        >
+                          <path
+                            fillRule="evenodd"
+                            d="M8.75 1A2.75 2.75 0 006 3.75v.443c-.795.077-1.584.176-2.365.298a.75.75 0 10.23 1.482l.149-.022.841 10.518A2.75 2.75 0 007.596 19h4.807a2.75 2.75 0 002.742-2.53l.841-10.52.149.023a.75.75 0 00.23-1.482A41.03 41.03 0 0014 4.193V3.75A2.75 2.75 0 0011.25 1h-2.5zM10 4c.84 0 1.673.025 2.5.075V3.75c0-.69-.56-1.25-1.25-1.25h-2.5c-.69 0-1.25.56-1.25 1.25v.325C8.327 4.025 9.16 4 10 4zM8.58 7.72a.75.75 0 00-1.5.06l.3 7.5a.75.75 0 101.5-.06l-.3-7.5zm4.34.06a.75.75 0 10-1.5-.06l-.3 7.5a.75.75 0 101.5.06l.3-7.5z"
+                            clipRule="evenodd"
+                          />
+                        </svg>
+                      </button>
+                    </div>
+                  </div>
+                ))}
+              </div>
+              
+              <div className="flex flex-col sm:flex-row items-center justify-between gap-4">
+                <div className="text-center sm:text-left">
+                  <div className="text-white text-xl font-bold">
+                    Total: ${cartItems.reduce((sum, item) => sum + (item.voteCount * item.votePrice), 0).toFixed(2)}
+                  </div>
+                  <div className="text-blue-300 text-sm">
+                    {cartItems.length} song{cartItems.length !== 1 ? 's' : ''} in your rocket
                   </div>
                 </div>
+                
+                <button
+                  onClick={() => router.push('/cart')}
+                  className="bg-gradient-to-r from-red-600 to-orange-500 hover:from-red-700 hover:to-orange-600 text-white font-bold py-3 px-8 rounded-xl transition-all duration-300 flex items-center justify-center gap-3 border-2 border-red-400/80 shadow-lg shadow-orange-500/30 text-lg"
+                >
+                  <svg
+                    xmlns="http://www.w3.org/2000/svg"
+                    viewBox="0 0 20 20"
+                    fill="currentColor"
+                    className="w-5 h-5"
+                  >
+                    <path
+                      d="M10.894 2.553a1 1 0 00-1.789 0l-7 14a1 1 0 001.169 1.409l5-1.429A1 1 0 009 15.571V11a1 1 0 112 0v4.571a1 1 0 00.725.962l5 1.428a1 1 0 001.17-1.408l-7-14z"
+                    />
+                  </svg>
+                  Proceed to Blast Off
+                </button>
               </div>
             </div>
           </div>

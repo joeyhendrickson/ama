@@ -1,63 +1,121 @@
 // app/api/stripe/create-account/route.ts
 
-import { NextResponse } from 'next/server'
+import { NextRequest, NextResponse } from 'next/server'
 import Stripe from 'stripe'
 import { supabase } from '@/lib/supabaseClient'
 
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!, {
-  apiVersion: '2024-04-10',
+  apiVersion: '2025-05-28.basil',
 })
 
-export async function POST(req: Request) {
+export async function POST(request: NextRequest) {
   try {
-    const { name } = await req.json()
-    console.log('▶ Received artist name:', name)
+    const { artistId, email } = await request.json()
 
-    if (!name) {
-      console.error('⛔ Missing artist name in request.')
-      return NextResponse.json({ error: 'Missing artist name.' }, { status: 400 })
+    if (!artistId || !email) {
+      return NextResponse.json(
+        { success: false, message: 'Missing required fields' },
+        { status: 400 }
+      )
     }
 
-    // Look up artist in Supabase
-    const { data: artist, error } = await supabase
+    // Check if Stripe key is configured
+    if (!process.env.STRIPE_SECRET_KEY) {
+      console.error('STRIPE_SECRET_KEY not configured')
+      return NextResponse.json(
+        { success: false, message: 'Stripe not configured' },
+        { status: 500 }
+      )
+    }
+
+    // Check if artist already has a Stripe account
+    const { data: artist, error: artistError } = await supabase
       .from('artists')
-      .select('email')
-      .eq('name', name)
+      .select('stripe_account_id')
+      .eq('id', artistId)
       .single()
 
-    if (error || !artist?.email) {
-      console.error('⛔ Artist not found or missing email:', error)
-      return NextResponse.json({ error: 'Artist not found or missing email.' }, { status: 404 })
+    if (artistError) {
+      console.error('Artist lookup error:', artistError)
+      return NextResponse.json(
+        { success: false, message: 'Artist not found' },
+        { status: 404 }
+      )
     }
 
-    console.log('✅ Found artist:', artist)
+    if (artist.stripe_account_id) {
+      return NextResponse.json(
+        { success: false, message: 'Artist already has a Stripe account' },
+        { status: 400 }
+      )
+    }
 
-    // Create Stripe account
+    // Create Stripe Connect account
     const account = await stripe.accounts.create({
       type: 'express',
-      email: artist.email,
-      metadata: {
-        artistName: name,
+      country: 'US',
+      email: email,
+      capabilities: {
+        card_payments: { requested: true },
+        transfers: { requested: true },
       },
+      business_type: 'individual',
     })
 
-    console.log('✅ Created Stripe account:', account.id)
+    console.log('Stripe account created:', account.id)
 
-    // Generate onboarding link
+    // Update artist with Stripe account ID
+    const { error: updateError } = await supabase
+      .from('artists')
+      .update({ stripe_account_id: account.id })
+      .eq('id', artistId)
+
+    if (updateError) {
+      console.error('Error updating artist with Stripe account:', updateError)
+      return NextResponse.json(
+        { success: false, message: 'Failed to save Stripe account' },
+        { status: 500 }
+      )
+    }
+
+    // Create account link for onboarding
     const accountLink = await stripe.accountLinks.create({
       account: account.id,
-      refresh_url: `${process.env.NEXT_PUBLIC_BASE_URL}/onboarding/refresh`,
-      return_url: `${process.env.NEXT_PUBLIC_BASE_URL}/onboarding/complete`,
+      refresh_url: `${process.env.NEXT_PUBLIC_BASE_URL || 'http://localhost:3000'}/artist-dashboard?tab=payouts`,
+      return_url: `${process.env.NEXT_PUBLIC_BASE_URL || 'http://localhost:3000'}/artist-dashboard?tab=payouts`,
       type: 'account_onboarding',
     })
 
-    console.log('✅ Stripe onboarding URL:', accountLink.url)
+    console.log('Account link created:', accountLink.url)
 
-    return NextResponse.json({ url: accountLink.url })
-  } catch (err: any) {
-    console.error('🔥 Stripe Connect error:', err.message || err)
+    return NextResponse.json({
+      success: true,
+      message: 'Stripe account created successfully',
+      accountId: account.id,
+      accountLink: accountLink.url
+    })
+
+  } catch (error) {
+    console.error('Error creating Stripe account:', error)
+    
+    // Provide more specific error messages
+    if (error instanceof Error) {
+      if (error.message.includes('api_key')) {
+        return NextResponse.json(
+          { success: false, message: 'Invalid Stripe API key' },
+          { status: 500 }
+        )
+      }
+      if (error.message.includes('permission')) {
+        return NextResponse.json(
+          { success: false, message: 'Stripe account creation not allowed' },
+          { status: 500 }
+        )
+      }
+    }
+    
     return NextResponse.json(
-      { error: 'Unable to create Stripe Connect account.' },
+      { success: false, message: 'Failed to create Stripe account: ' + (error instanceof Error ? error.message : 'Unknown error') },
       { status: 500 }
     )
   }
