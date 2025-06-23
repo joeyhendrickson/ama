@@ -11,13 +11,13 @@ export async function POST(request: NextRequest) {
     const confirmPassword = formData.get('confirmPassword') as string
     const songName = formData.get('songName') as string
     const bio = formData.get('bio') as string
-    const soundcloudLink = formData.get('soundcloudLink') as string
     const website = formData.get('website') as string
     const message = formData.get('message') as string
     const songFile = formData.get('songFile') as File
+    const bioImage = formData.get('bioImage') as File
 
     // Validation
-    if (!artistName || !email || !password || !songName || !bio || !songFile) {
+    if (!artistName || !email || !password || !songName || !bio || !songFile || !bioImage) {
       return NextResponse.json(
         { success: false, message: 'Missing required fields' },
         { status: 400 }
@@ -52,10 +52,17 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    // Create Supabase Auth user
+    // Create Supabase Auth user with email confirmation
     const { data: authData, error: authError } = await supabase.auth.signUp({
       email,
       password,
+      options: {
+        emailRedirectTo: `${request.nextUrl.origin}/login?verified=true`,
+        data: {
+          artist_name: artistName,
+          signup_type: 'artist'
+        }
+      }
     })
 
     if (authError) {
@@ -73,11 +80,30 @@ export async function POST(request: NextRequest) {
       )
     }
 
+    // Upload bio image to Supabase Storage
+    const bioImageName = `bio-${Date.now()}-${bioImage.name}`
+    const { data: bioUploadData, error: bioUploadError } = await supabase.storage
+      .from('artist-images')
+      .upload(bioImageName, bioImage)
+
+    if (bioUploadError) {
+      console.error('Bio image upload error:', bioUploadError)
+      return NextResponse.json(
+        { success: false, message: 'Failed to upload artist photo' },
+        { status: 500 }
+      )
+    }
+
+    // Get the public URL for the bio image
+    const { data: bioUrlData } = supabase.storage
+      .from('artist-images')
+      .getPublicUrl(bioImageName)
+
     // Upload song file to Supabase Storage
-    const fileName = `${Date.now()}-${songFile.name}`
+    const songFileName = `${Date.now()}-${songFile.name}`
     const { data: uploadData, error: uploadError } = await supabase.storage
       .from('songs')
-      .upload(fileName, songFile)
+      .upload(songFileName, songFile)
 
     if (uploadError) {
       console.error('Upload error:', uploadError)
@@ -90,7 +116,7 @@ export async function POST(request: NextRequest) {
     // Get the public URL for the uploaded file
     const { data: urlData } = supabase.storage
       .from('songs')
-      .getPublicUrl(fileName)
+      .getPublicUrl(songFileName)
 
     // Create artist record
     const { data: artistData, error: artistError } = await supabase
@@ -100,7 +126,7 @@ export async function POST(request: NextRequest) {
         name: artistName,
         email: email,
         bio: bio,
-        soundcloud_url: soundcloudLink || null,
+        image_url: bioUrlData.publicUrl,
         website_url: website || null,
         status: 'pending', // Will be approved by admin
         created_at: new Date().toISOString(),
@@ -117,7 +143,7 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    // Create song record
+    // Create song record as private song
     const { data: songData, error: songError } = await supabase
       .from('songs')
       .insert({
@@ -126,7 +152,7 @@ export async function POST(request: NextRequest) {
         audio_url: urlData.publicUrl,
         vote_count: 0,
         vote_goal: 100,
-        status: 'pending', // Will be approved by admin
+        status: 'private', // Private song, not public yet
         created_at: new Date().toISOString(),
         updated_at: new Date().toISOString()
       })
@@ -141,12 +167,31 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    // Send confirmation email (Supabase Auth handles this automatically)
-    // The user will receive an email to confirm their account
+    // Send custom confirmation email
+    try {
+      const emailResponse = await fetch(`${request.nextUrl.origin}/api/notify-artist`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          artistId: authData.user.id,
+          artistName: artistName,
+          email: email,
+          type: 'signup_confirmation'
+        })
+      })
+
+      if (!emailResponse.ok) {
+        console.error('Failed to send confirmation email')
+      }
+    } catch (emailError) {
+      console.error('Email error:', emailError)
+    }
 
     return NextResponse.json({
       success: true,
-      message: 'Artist account created successfully! Please check your email to confirm your account.',
+      message: 'Artist account created successfully! Please check your email to verify your account.',
       artistId: authData.user.id,
       songId: songData.id
     })

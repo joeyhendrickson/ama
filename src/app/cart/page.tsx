@@ -155,21 +155,19 @@ export default function CartPage() {
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-[#040a12] flex items-center justify-center">
-        <div className="bg-blue-800/20 backdrop-blur-md border border-blue-400/30 p-8 rounded-2xl">
-          <p className="text-white text-lg">Loading your rocket fuel...</p>
-        </div>
+      <div className="min-h-screen bg-white flex items-center justify-center">
+        <div className="text-gray-600">Loading your rocket fuel...</div>
       </div>
     )
   }
 
   return (
-    <div className="min-h-screen bg-[#040a12]">
+    <div className="min-h-screen bg-white">
       {/* Back Button - Middle Left */}
       {lastVisitedArtist ? (
         <Link 
           href={`/artist/${lastVisitedArtist}`}
-          className="fixed left-4 top-1/2 transform -translate-y-1/2 z-50 inline-flex items-center justify-center w-12 h-12 bg-white backdrop-blur-md border border-white/30 rounded-full text-blue-800 hover:text-blue-900 hover:bg-gray-100 transition-all duration-300 group shadow-lg"
+          className="fixed left-4 top-1/2 transform -translate-y-1/2 z-50 inline-flex items-center justify-center w-12 h-12 bg-white backdrop-blur-md border border-gray-300 rounded-full text-gray-700 hover:text-gray-900 hover:bg-gray-100 transition-all duration-300 group shadow-lg"
         >
           <svg
             xmlns="http://www.w3.org/2000/svg"
@@ -187,7 +185,7 @@ export default function CartPage() {
       ) : (
         <Link 
           href="/"
-          className="fixed left-4 top-1/2 transform -translate-y-1/2 z-50 inline-flex items-center justify-center w-12 h-12 bg-white backdrop-blur-md border border-white/30 rounded-full text-blue-800 hover:text-blue-900 hover:bg-gray-100 transition-all duration-300 group shadow-lg"
+          className="fixed left-4 top-1/2 transform -translate-y-1/2 z-50 inline-flex items-center justify-center w-12 h-12 bg-white backdrop-blur-md border border-gray-300 rounded-full text-gray-700 hover:text-gray-900 hover:bg-gray-100 transition-all duration-300 group shadow-lg"
         >
           <svg
             xmlns="http://www.w3.org/2000/svg"
@@ -207,16 +205,16 @@ export default function CartPage() {
       <div className="container mx-auto px-4 py-8">
         {/* Header */}
         <div className="text-center mb-12">
-          <h1 className="text-5xl font-bold text-white mb-4">🚀 Your Rocket Fuel</h1>
-          <p className="text-blue-200 text-lg">Ready to launch these songs to the stars!</p>
+          <h1 className="text-5xl font-bold text-gray-900 mb-4">🚀 Your Rocket Fuel</h1>
+          <p className="text-gray-600 text-lg">Ready to launch these songs to the stars!</p>
         </div>
 
         {cartItems.length === 0 ? (
-          <div className="bg-blue-800/20 backdrop-blur-md border border-blue-400/30 p-8 rounded-2xl text-center">
-            <div className="text-blue-200 text-lg mb-4">Your rocket fuel tank is empty!</div>
+          <div className="bg-white border border-gray-200 p-8 rounded-2xl text-center shadow-lg">
+            <div className="text-gray-600 text-lg mb-4">Your rocket fuel tank is empty!</div>
             <Link 
               href="/"
-              className="inline-flex items-center px-6 py-3 bg-gradient-to-r from-red-600 to-orange-500 hover:from-red-700 hover:to-orange-600 text-white font-semibold rounded-xl transition-all duration-300 border-2 border-red-400/80 shadow-lg shadow-orange-500/30"
+              className="inline-flex items-center px-6 py-3 bg-blue-600 hover:bg-blue-700 text-white font-semibold rounded-xl transition-all duration-300 shadow-lg"
             >
               <svg
                 xmlns="http://www.w3.org/2000/svg"
@@ -239,22 +237,22 @@ export default function CartPage() {
                 const hasVoiceComment = !!item.voiceComment
                 
                 return (
-                  <div key={item.songId} className="bg-blue-900/30 border border-blue-400/20 rounded-xl p-4">
+                  <div key={item.songId} className="bg-white border border-gray-200 rounded-xl p-4 shadow-lg">
                     <div className="flex justify-between items-start mb-3">
                       <div className="flex-1 min-w-0">
-                        <div className="text-white font-semibold truncate">{item.songTitle}</div>
+                        <div className="text-gray-900 font-semibold truncate">{item.songTitle}</div>
                         {artist && (
-                          <div className="text-blue-300 text-sm">by {artist.name}</div>
+                          <div className="text-gray-600 text-sm">by {artist.name}</div>
                         )}
-                        <div className="text-blue-300 text-sm">Votes: {item.voteCount}</div>
+                        <div className="text-gray-600 text-sm">Votes: {item.voteCount}</div>
                       </div>
                       <div className="text-right ml-4">
-                        <div className="text-yellow-300 font-bold text-lg">
+                        <div className="text-blue-600 font-bold text-lg">
                           ${(item.voteCount * item.votePrice).toFixed(2)}
                         </div>
                         <button
                           onClick={() => handleRemoveItem(item.songId)}
-                          className="text-red-400 hover:text-red-300 transition-colors p-1 mt-1"
+                          className="text-red-500 hover:text-red-600 transition-colors p-1 mt-1"
                         >
                           <svg
                             xmlns="http://www.w3.org/2000/svg"
@@ -270,15 +268,15 @@ export default function CartPage() {
 
                     {/* Voice Comment Section */}
                     {hasVoiceComment && (
-                      <div className="mt-3 p-3 bg-green-900/30 border border-green-400/30 rounded-lg">
+                      <div className="mt-3 p-3 bg-green-50 border border-green-200 rounded-lg">
                         <div className="flex items-center justify-between mb-2">
                           <div className="flex items-center gap-2">
-                            <div className="text-green-400">🎤</div>
-                            <span className="text-green-300 text-sm font-medium">Voice Comment</span>
+                            <div className="text-green-600">🎤</div>
+                            <span className="text-green-700 text-sm font-medium">Voice Comment</span>
                           </div>
                           <button
                             onClick={() => handleRemoveVoiceComment(item.songId)}
-                            className="text-red-400 hover:text-red-300 transition-colors p-1"
+                            className="text-red-500 hover:text-red-600 transition-colors p-1"
                           >
                             <svg
                               xmlns="http://www.w3.org/2000/svg"
@@ -321,17 +319,17 @@ export default function CartPage() {
             </div>
 
             {/* Total and Actions */}
-            <div className="bg-blue-800/20 backdrop-blur-md border border-blue-400/30 p-8 rounded-2xl shadow-xl">
+            <div className="bg-white border border-gray-200 p-8 rounded-2xl shadow-lg">
               <div className="flex flex-col sm:flex-row items-center justify-between gap-4">
                 <div className="text-center sm:text-left">
-                  <div className="text-white text-xl font-bold">
+                  <div className="text-gray-900 text-xl font-bold">
                     Total: ${totalPrice.toFixed(2)}
                   </div>
-                  <div className="text-blue-300 text-sm">
+                  <div className="text-gray-600 text-sm">
                     {cartItems.length} song{cartItems.length !== 1 ? 's' : ''} in your rocket
                   </div>
                   {cartItems.some(item => item.voiceComment) && (
-                    <div className="text-green-300 text-sm mt-1">
+                    <div className="text-green-600 text-sm mt-1">
                       {cartItems.filter(item => item.voiceComment).length} voice comment{cartItems.filter(item => item.voiceComment).length !== 1 ? 's' : ''} included
                     </div>
                   )}
@@ -340,7 +338,7 @@ export default function CartPage() {
                 <div className="flex flex-col sm:flex-row gap-3">
                   <button
                     onClick={handleCheckout}
-                    className="bg-gradient-to-r from-red-600 to-orange-500 hover:from-red-700 hover:to-orange-600 text-white font-bold py-3 px-8 rounded-xl transition-all duration-300 flex items-center justify-center gap-3 border-2 border-red-400/80 shadow-lg shadow-orange-500/30 text-lg"
+                    className="bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 px-8 rounded-xl transition-all duration-300 flex items-center justify-center gap-3 shadow-lg text-lg"
                   >
                     <svg
                       xmlns="http://www.w3.org/2000/svg"
@@ -357,7 +355,7 @@ export default function CartPage() {
                   
                   <button
                     onClick={handleClearCart}
-                    className="px-6 py-3 border border-red-400 text-red-400 rounded-xl font-semibold hover:bg-red-400 hover:text-white transition-colors"
+                    className="px-6 py-3 border border-red-500 text-red-500 rounded-xl font-semibold hover:bg-red-500 hover:text-white transition-colors"
                   >
                     Clear All
                   </button>

@@ -4,11 +4,95 @@ import { supabase } from '@/lib/supabaseClient'
 
 export async function POST(request: NextRequest) {
   try {
-    const { artistId, purchaseSessionId } = await request.json()
+    const body = await request.json()
+    const { artistId, purchaseSessionId, type, artistName, email } = body
 
-    if (!artistId || !purchaseSessionId) {
+    if (!artistId) {
       return NextResponse.json(
-        { success: false, message: 'Missing required fields' },
+        { success: false, message: 'Missing artist ID' },
+        { status: 400 }
+      )
+    }
+
+    // Create transporter
+    const transporter = nodemailer.createTransport({
+      service: 'gmail',
+      auth: {
+        user: process.env.EMAIL_USER,
+        pass: process.env.EMAIL_PASS
+      }
+    })
+
+    // Handle signup confirmation email
+    if (type === 'signup_confirmation') {
+      const loginUrl = `${process.env.NEXT_PUBLIC_BASE_URL}/login?verified=true`
+      
+      const mailOptions = {
+        from: process.env.EMAIL_USER,
+        to: email,
+        subject: '🎵 Welcome to Launch That Song - Verify Your Account',
+        html: `
+          <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; background: #f8fafc; padding: 20px;">
+            <div style="background: white; padding: 30px; border-radius: 12px; box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);">
+              <div style="text-align: center; margin-bottom: 30px;">
+                <h1 style="color: #1e40af; margin: 0; font-size: 28px;">🎵 Launch That Song</h1>
+                <p style="color: #64748b; margin: 10px 0 0 0;">Welcome to the community!</p>
+              </div>
+              
+              <div style="background: linear-gradient(135deg, #1e40af, #3b82f6); color: white; padding: 25px; border-radius: 8px; margin: 20px 0;">
+                <h2 style="margin: 0 0 15px 0; font-size: 24px;">Welcome, ${artistName}!</h2>
+                <p style="margin: 0; font-size: 16px; line-height: 1.6;">
+                  Your artist account has been created successfully! To complete your registration and access your dashboard, please verify your email address.
+                </p>
+              </div>
+              
+              <div style="background: #f1f5f9; padding: 20px; border-radius: 8px; margin: 20px 0;">
+                <h3 style="color: #1e40af; margin: 0 0 15px 0;">📋 What's Next?</h3>
+                <ul style="margin: 0; padding-left: 20px; color: #374151;">
+                  <li>Click the verification button below</li>
+                  <li>Log in with your email and password</li>
+                  <li>Access your artist dashboard</li>
+                  <li>Manage your songs and view analytics</li>
+                </ul>
+              </div>
+              
+              <div style="text-align: center; margin: 30px 0;">
+                <a href="${loginUrl}" 
+                   style="background: linear-gradient(135deg, #dc2626, #ea580c); color: white; padding: 15px 30px; text-decoration: none; border-radius: 8px; font-weight: bold; font-size: 16px; display: inline-block; box-shadow: 0 4px 6px rgba(220, 38, 38, 0.3);">
+                  ✅ Verify Email & Login
+                </a>
+              </div>
+              
+              <div style="background: #fef3c7; border-left: 4px solid #f59e0b; padding: 15px; border-radius: 4px; margin: 20px 0;">
+                <p style="margin: 0; color: #92400e; font-size: 14px;">
+                  <strong>💡 Note:</strong> Your account and first song are currently pending admin approval. You'll be notified once approved!
+                </p>
+              </div>
+              
+              <div style="text-align: center; margin-top: 30px; padding-top: 20px; border-top: 1px solid #e5e7eb;">
+                <p style="color: #6b7280; font-size: 14px; margin: 0;">
+                  This email was sent from Launch That Song.<br>
+                  <a href="${process.env.NEXT_PUBLIC_BASE_URL}" style="color: #3b82f6;">Visit LaunchThatSong.com</a>
+                </p>
+              </div>
+            </div>
+          </div>
+        `
+      }
+
+      await transporter.sendMail(mailOptions)
+
+      return NextResponse.json({ 
+        success: true, 
+        message: 'Signup confirmation email sent successfully',
+        artistName
+      })
+    }
+
+    // Handle voice comment notifications (existing functionality)
+    if (!purchaseSessionId) {
+      return NextResponse.json(
+        { success: false, message: 'Missing purchase session ID for voice comments' },
         { status: 400 }
       )
     }
@@ -50,16 +134,7 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    // Create transporter
-    const transporter = nodemailer.createTransport({
-      service: 'gmail',
-      auth: {
-        user: process.env.EMAIL_USER,
-        pass: process.env.EMAIL_PASS
-      }
-    })
-
-    // Prepare email content
+    // Prepare email content for voice comments
     const dashboardUrl = `${process.env.NEXT_PUBLIC_BASE_URL}/artist-dashboard`
     const commentCount = voiceComments.length
     const songNames = [...new Set(voiceComments.map(c => c.song_title))].join(', ')

@@ -2,7 +2,7 @@
 
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { useParams, useRouter } from 'next/navigation'
 import Image from 'next/image'
 import Link from 'next/link'
@@ -46,6 +46,85 @@ export default function ArtistPage() {
   const [showPlayback, setShowPlayback] = useState<{ [songId: string]: boolean }>({})
   const [mediaRecorder, setMediaRecorder] = useState<{ [songId: string]: MediaRecorder | null }>({})
   const [showPaymentModal, setShowPaymentModal] = useState<{ [songId: string]: boolean }>({})
+
+  // Analytics tracking
+  const sessionId = useRef<string>(`session_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`)
+  const pageLoadTime = useRef<number>(Date.now())
+  const audioSessions = useRef<{ [songId: string]: { startTime: number, totalTime: number } }>({})
+
+  // Track analytics event
+  const trackEvent = async (eventType: string, data?: any) => {
+    if (!id) return
+
+    try {
+      await fetch('/api/analytics/track-pageview', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          artistId: id,
+          eventType,
+          data: {
+            ...data,
+            sessionId: sessionId.current,
+            timestamp: new Date().toISOString()
+          }
+        })
+      })
+    } catch (error) {
+      console.error('Error tracking analytics:', error)
+    }
+  }
+
+  // Track page view on load
+  useEffect(() => {
+    if (id) {
+      trackEvent('pageview')
+      
+      // Track session start
+      trackEvent('session_start', {
+        sessionId: sessionId.current,
+        startTime: pageLoadTime.current
+      })
+    }
+  }, [id])
+
+  // Track page unload and session end
+  useEffect(() => {
+    const handleBeforeUnload = () => {
+      const sessionDuration = Date.now() - pageLoadTime.current
+      trackEvent('session_end', {
+        sessionId: sessionId.current,
+        duration: sessionDuration
+      })
+    }
+
+    window.addEventListener('beforeunload', handleBeforeUnload)
+    return () => window.removeEventListener('beforeunload', handleBeforeUnload)
+  }, [])
+
+  // Track audio interactions
+  const trackAudioEvent = (songId: string, eventType: 'audio_play' | 'audio_pause' | 'audio_end', duration?: number) => {
+    if (!audioSessions.current[songId]) {
+      audioSessions.current[songId] = { startTime: Date.now(), totalTime: 0 }
+    }
+
+    const session = audioSessions.current[songId]
+    
+    if (eventType === 'audio_play') {
+      session.startTime = Date.now()
+    } else if (eventType === 'audio_pause' || eventType === 'audio_end') {
+      session.totalTime += Date.now() - session.startTime
+    }
+
+    trackEvent(eventType, {
+      songId,
+      sessionId: sessionId.current,
+      duration: session.totalTime,
+      eventDuration: duration
+    })
+  }
 
   useEffect(() => {
     // Track this artist as the last visited
@@ -119,10 +198,22 @@ export default function ArtistPage() {
       voteCount: 1,
       votePrice: 1.00
     })
+    
+    // Track vote event
+    trackEvent('vote', {
+      songId: song.id,
+      songTitle: song.title,
+      voteCount: 1
+    })
   }
 
   const removeVote = (songId: string) => {
     removeFromCart(songId)
+    
+    // Track vote removal
+    trackEvent('vote_removed', {
+      songId
+    })
   }
 
   const getVotePercentage = (voteCount: number, voteGoal: number) => {
@@ -130,6 +221,12 @@ export default function ArtistPage() {
   }
 
   const navigateToArtist = (artistId: string) => {
+    // Track navigation click
+    trackEvent('click', {
+      action: 'navigate_to_artist',
+      targetArtistId: artistId
+    })
+    
     router.push(`/artist/${artistId}`)
   }
 
@@ -148,6 +245,12 @@ export default function ArtistPage() {
       ...prev,
       [songId]: !prev[songId]
     }))
+    
+    // Track card flip
+    trackEvent('click', {
+      action: 'flip_card',
+      songId
+    })
   }
 
   const handlePlayAudio = (songId: string) => {
@@ -170,6 +273,8 @@ export default function ArtistPage() {
         setCurrentlyPlaying(null)
       }
     }
+
+    trackAudioEvent(songId, 'audio_play')
   }
 
   const handleAudioEnded = (songId: string) => {
@@ -178,6 +283,8 @@ export default function ArtistPage() {
     if (progress) {
       progress.style.width = '0%'
     }
+
+    trackAudioEvent(songId, 'audio_end')
   }
 
   const startRecording = (songId: string) => {
@@ -220,6 +327,8 @@ export default function ArtistPage() {
             ...prev,
             [songId]: ''
           }))
+
+          trackAudioEvent(songId, 'audio_play')
         })
         .catch(err => {
           console.error('Error accessing microphone:', err)
@@ -237,6 +346,8 @@ export default function ArtistPage() {
       ...prev,
       [songId]: false
     }))
+
+    trackAudioEvent(songId, 'audio_end')
   }
 
   const playBackRecording = (songId: string) => {
@@ -254,6 +365,8 @@ export default function ArtistPage() {
         ...prev,
         [songId]: true
       }))
+
+      trackAudioEvent(songId, 'audio_play')
     }
   }
 
@@ -337,6 +450,8 @@ export default function ArtistPage() {
         }))
 
         alert('Voice comment saved! It will be sent to the artist when you complete your purchase.')
+
+        trackAudioEvent(songId, 'audio_end')
       }
       reader.readAsDataURL(blob)
     } catch (error) {
@@ -363,6 +478,8 @@ export default function ArtistPage() {
       ...prev,
       [songId]: false
     }))
+
+    trackAudioEvent(songId, 'audio_end')
   }
 
   const handleMaybeLater = (songId: string) => {
@@ -385,8 +502,8 @@ export default function ArtistPage() {
 
   if (error) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-blue-900 via-blue-800 to-blue-900 flex items-center justify-center">
-        <div className="bg-red-900/50 backdrop-blur-md border border-red-400/30 rounded-xl p-6 text-red-200">
+      <div className="min-h-screen bg-white flex items-center justify-center">
+        <div className="bg-red-50 border border-red-200 rounded-xl p-6 text-red-700">
           Error: {error}
         </div>
       </div>
@@ -395,8 +512,8 @@ export default function ArtistPage() {
 
   if (!artist) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-blue-900 via-blue-800 to-blue-900 flex items-center justify-center">
-        <div className="bg-blue-800/50 backdrop-blur-md border border-blue-400/30 rounded-xl p-6 text-white">
+      <div className="min-h-screen bg-white flex items-center justify-center">
+        <div className="bg-gray-50 border border-gray-200 rounded-xl p-6 text-gray-700">
           Loading artist...
         </div>
       </div>
@@ -412,12 +529,12 @@ export default function ArtistPage() {
   const fuelPercentage = Math.min((totalVotesInCart / 50) * 100, 100) // Assuming 50 votes is a full tank
 
   return (
-    <div className="min-h-screen bg-[#040a12]">
+    <div className="min-h-screen bg-white">
       {/* Left Arrow - Previous Artist or Home */}
       {previousArtist ? (
         <button 
           onClick={() => navigateToArtist(previousArtist.id)}
-          className="fixed left-4 top-1/2 transform -translate-y-1/2 z-50 inline-flex items-center justify-center w-12 h-12 bg-white backdrop-blur-md border border-white/30 rounded-full text-blue-800 hover:text-blue-900 hover:bg-gray-100 transition-all duration-300 group shadow-lg"
+          className="fixed left-4 top-1/2 transform -translate-y-1/2 z-50 inline-flex items-center justify-center w-12 h-12 bg-white backdrop-blur-md border border-gray-300 rounded-full text-gray-700 hover:text-gray-900 hover:bg-gray-100 transition-all duration-300 group shadow-lg"
         >
           <svg
             xmlns="http://www.w3.org/2000/svg"
@@ -435,7 +552,7 @@ export default function ArtistPage() {
       ) : (
         <Link 
           href="/" 
-          className="fixed left-4 top-1/2 transform -translate-y-1/2 z-50 inline-flex items-center justify-center w-12 h-12 bg-white backdrop-blur-md border border-white/30 rounded-full text-blue-800 hover:text-blue-900 hover:bg-gray-100 transition-all duration-300 group shadow-lg"
+          className="fixed left-4 top-1/2 transform -translate-y-1/2 z-50 inline-flex items-center justify-center w-12 h-12 bg-white backdrop-blur-md border border-gray-300 rounded-full text-gray-700 hover:text-gray-900 hover:bg-gray-100 transition-all duration-300 group shadow-lg"
         >
           <svg
             xmlns="http://www.w3.org/2000/svg"
@@ -457,7 +574,7 @@ export default function ArtistPage() {
         // Special case for Joey Hendrickson's page - link to Columbus Songwriters Association
         <Link 
           href="/artist/a5590c42-c83f-4ce5-b64e-5ae4c1db1d6c"
-          className="fixed right-4 top-1/2 transform -translate-y-1/2 z-50 inline-flex items-center justify-center w-12 h-12 bg-white backdrop-blur-md border border-white/30 rounded-full text-blue-800 hover:text-blue-900 hover:bg-gray-100 transition-all duration-300 group shadow-lg"
+          className="fixed right-4 top-1/2 transform -translate-y-1/2 z-50 inline-flex items-center justify-center w-12 h-12 bg-white backdrop-blur-md border border-gray-300 rounded-full text-gray-700 hover:text-gray-900 hover:bg-gray-100 transition-all duration-300 group shadow-lg"
         >
           <svg
             xmlns="http://www.w3.org/2000/svg"
@@ -475,7 +592,7 @@ export default function ArtistPage() {
       ) : nextArtist ? (
         <button 
           onClick={() => navigateToArtist(nextArtist.id)}
-          className="fixed right-4 top-1/2 transform -translate-y-1/2 z-50 inline-flex items-center justify-center w-12 h-12 bg-white backdrop-blur-md border border-white/30 rounded-full text-blue-800 hover:text-blue-900 hover:bg-gray-100 transition-all duration-300 group shadow-lg"
+          className="fixed right-4 top-1/2 transform -translate-y-1/2 z-50 inline-flex items-center justify-center w-12 h-12 bg-white backdrop-blur-md border border-gray-300 rounded-full text-gray-700 hover:text-gray-900 hover:bg-gray-100 transition-all duration-300 group shadow-lg"
         >
           <svg
             xmlns="http://www.w3.org/2000/svg"
@@ -493,7 +610,7 @@ export default function ArtistPage() {
       ) : (
         <Link 
           href="/" 
-          className="fixed right-4 top-1/2 transform -translate-y-1/2 z-50 inline-flex items-center justify-center w-12 h-12 bg-white backdrop-blur-md border border-white/30 rounded-full text-blue-800 hover:text-blue-900 hover:bg-gray-100 transition-all duration-300 group shadow-lg"
+          className="fixed right-4 top-1/2 transform -translate-y-1/2 z-50 inline-flex items-center justify-center w-12 h-12 bg-white backdrop-blur-md border border-gray-300 rounded-full text-gray-700 hover:text-gray-900 hover:bg-gray-100 transition-all duration-300 group shadow-lg"
         >
           <svg
             xmlns="http://www.w3.org/2000/svg"
@@ -528,20 +645,20 @@ export default function ArtistPage() {
               </div>
             </div>
           ) : (
-            <div className="w-80 h-80 bg-blue-800/50 backdrop-blur-md border border-blue-400/30 rounded-2xl flex items-center justify-center text-blue-200">
+            <div className="w-80 h-80 bg-gray-100 border border-gray-200 rounded-2xl flex items-center justify-center text-gray-500">
               No Image
             </div>
           )}
 
-          <div className="bg-blue-800/20 backdrop-blur-md border border-blue-400/30 p-8 rounded-2xl flex-1">
-            <h1 className="text-5xl font-bold text-white mb-4">{artist.name}</h1>
-            <p className="text-blue-200 text-lg leading-relaxed">{artist.bio}</p>
+          <div className="bg-white border border-gray-200 p-8 rounded-2xl flex-1 shadow-lg">
+            <h1 className="text-5xl font-bold text-gray-900 mb-4">{artist.name}</h1>
+            <p className="text-gray-600 text-lg leading-relaxed">{artist.bio}</p>
           </div>
         </div>
 
         {/* Songs Section */}
         <div className="mb-12">
-          <h2 className="text-4xl font-bold text-white mb-8 text-center">Vote for Songs</h2>
+          <h2 className="text-4xl font-bold text-gray-900 mb-8 text-center">Vote for Songs</h2>
 
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
             {songs.map((song) => {
@@ -561,17 +678,17 @@ export default function ArtistPage() {
                     onClick={() => toggleCardFlip(song.id)}
                   >
                     {/* Front of Card - Audio Player */}
-                    <div className="absolute inset-0 bg-blue-800/20 backdrop-blur-md border border-blue-400/30 p-6 rounded-2xl shadow-xl hover:shadow-blue-500/20 transition-all backface-hidden">
-                      <h3 className="text-2xl font-bold text-white mb-4 group-hover:text-blue-200 transition-colors">
+                    <div className="absolute inset-0 bg-white border border-gray-200 p-6 rounded-2xl shadow-lg hover:shadow-xl transition-all backface-hidden">
+                      <h3 className="text-2xl font-bold text-gray-900 mb-4 group-hover:text-[#E55A2B] transition-colors">
                         {song.title}
                       </h3>
 
                       {song.audio_url ? (
                         <div className="mb-6">
-                          <div className="bg-blue-900/30 border border-blue-400/20 rounded-xl p-4">
+                          <div className="bg-gray-50 border border-gray-200 rounded-xl p-4">
                             <div className="flex items-center gap-3 mb-3">
                               <button 
-                                className="w-10 h-10 bg-black rounded-full flex items-center justify-center text-white hover:bg-gray-800 transition-colors"
+                                className="w-10 h-10 bg-[#E55A2B] text-white rounded-full flex items-center justify-center hover:bg-[#D14A1B] transition-colors"
                                 onClick={(e) => {
                                   e.stopPropagation()
                                   handlePlayAudio(song.id)
@@ -598,8 +715,8 @@ export default function ArtistPage() {
                                 )}
                               </button>
                               <div className="flex-1">
-                                <div className="text-white font-medium text-sm">{song.title}</div>
-                                <div className="text-blue-300 text-xs">
+                                <div className="text-gray-900 font-medium text-sm">{song.title}</div>
+                                <div className="text-gray-500 text-xs">
                                   {isPlaying ? 'Now Playing' : 'Click to play'}
                                 </div>
                               </div>
@@ -607,14 +724,14 @@ export default function ArtistPage() {
                             
                             {/* Custom Progress Bar */}
                             <div className="relative">
-                              <div className="w-full bg-blue-800/50 rounded-full h-2 overflow-hidden">
+                              <div className="w-full bg-gray-200 rounded-full h-2 overflow-hidden">
                                 <div 
-                                  className="bg-gradient-to-r from-blue-400 to-blue-600 h-2 rounded-full transition-all duration-100 ease-out"
+                                  className="bg-[#E55A2B] h-2 rounded-full transition-all duration-100 ease-out"
                                   style={{ width: '0%' }}
                                   id={`progress-${song.id}`}
                                 />
                               </div>
-                              <div className="absolute top-0 left-0 w-full h-2 bg-gradient-to-r from-transparent via-white/20 to-transparent opacity-0 hover:opacity-100 transition-opacity cursor-pointer"
+                              <div className="absolute top-0 left-0 w-full h-2 bg-gradient-to-r from-transparent via-orange-200 to-transparent opacity-0 hover:opacity-100 transition-opacity cursor-pointer"
                                    onClick={(e) => {
                                      e.stopPropagation()
                                      const audio = document.getElementById(`audio-${song.id}`) as HTMLAudioElement
@@ -646,20 +763,20 @@ export default function ArtistPage() {
                           </div>
                         </div>
                       ) : (
-                        <div className="mb-6 p-4 bg-blue-900/30 border border-blue-400/20 rounded-xl">
+                        <div className="mb-6 p-4 bg-gray-50 border border-gray-200 rounded-xl">
                           <div className="flex items-center gap-3">
-                            <div className="w-10 h-10 bg-gray-600 rounded-full flex items-center justify-center">
+                            <div className="w-10 h-10 bg-gray-400 rounded-full flex items-center justify-center">
                               <svg
                                 xmlns="http://www.w3.org/2000/svg"
                                 viewBox="0 0 20 20"
                                 fill="currentColor"
-                                className="w-5 h-5 text-gray-400"
+                                className="w-5 h-5 text-gray-600"
                               >
                                 <path d="M6.3 2.841A1.5 1.5 0 004 4.11V15.89a1.5 1.5 0 002.3 1.269l9.344-5.89a1.5 1.5 0 000-2.538L6.3 2.84z" />
                               </svg>
                             </div>
                             <div>
-                              <div className="text-gray-400 font-medium text-sm">No audio uploaded</div>
+                              <div className="text-gray-600 font-medium text-sm">No audio uploaded</div>
                               <div className="text-gray-500 text-xs">Audio file not available</div>
                             </div>
                           </div>
@@ -668,17 +785,17 @@ export default function ArtistPage() {
 
                       {/* Vote Progress */}
                       <div className="mb-6">
-                        <div className="flex items-center justify-between text-sm text-blue-200 mb-2">
+                        <div className="flex items-center justify-between text-sm text-gray-600 mb-2">
                           <span>Votes: {totalVotes} / {song.vote_goal || 'Goal not set'}</span>
                           <span className="font-bold">{votePercentage}%</span>
                         </div>
-                        <div className="w-full bg-gray-600/50 rounded-full h-3 overflow-hidden">
+                        <div className="w-full bg-gray-200 rounded-full h-3 overflow-hidden">
                           <div
-                            className="bg-gradient-to-r from-blue-400 to-blue-600 h-3 rounded-full transition-all duration-1000 ease-out"
+                            className="bg-[#E55A2B] h-3 rounded-full transition-all duration-1000 ease-out"
                             style={{ width: `${votePercentage}%` }}
                           />
                         </div>
-                        <div className="flex items-center justify-between text-xs text-blue-300 mt-2">
+                        <div className="flex items-center justify-between text-xs text-gray-500 mt-2">
                           <span>Price per vote: $1.00</span>
                           <span>Total: ${(cartItem?.voteCount || 0) * 1.00}</span>
                         </div>
@@ -692,11 +809,11 @@ export default function ArtistPage() {
                             removeVote(song.id)
                           }}
                           disabled={!cartItem}
-                          className="w-12 h-12 bg-black text-white rounded-full hover:bg-gray-800 disabled:opacity-50 disabled:cursor-not-allowed transition-all flex items-center justify-center text-xl font-bold"
+                          className="w-12 h-12 bg-gray-200 text-gray-700 rounded-full hover:bg-gray-300 disabled:opacity-50 disabled:cursor-not-allowed transition-all flex items-center justify-center text-xl font-bold"
                         >
                           −
                         </button>
-                        <span className="text-2xl font-bold text-white min-w-[3rem] text-center">
+                        <span className="text-2xl font-bold text-gray-900 min-w-[3rem] text-center">
                           {cartItem?.voteCount || 0}
                         </span>
                         <button
@@ -704,26 +821,26 @@ export default function ArtistPage() {
                             e.stopPropagation()
                             addVote(song)
                           }}
-                          className="w-12 h-12 bg-black text-white rounded-full hover:bg-gray-800 transition-all flex items-center justify-center text-xl font-bold"
+                          className="w-12 h-12 bg-[#E55A2B] text-white rounded-full hover:bg-[#D14A1B] transition-all flex items-center justify-center text-xl font-bold"
                         >
                           ＋
                         </button>
                       </div>
 
                       {/* Flip Hint */}
-                      <div className="text-center text-blue-300 text-sm">
+                      <div className="text-center text-gray-500 text-sm">
                         Click outside player to record voice comment
                       </div>
                     </div>
 
                     {/* Back of Card - Voice Comment */}
-                    <div className="absolute inset-0 bg-black backdrop-blur-md border border-gray-600/30 p-6 rounded-2xl shadow-xl rotate-y-180 backface-hidden">
+                    <div className="absolute inset-0 bg-white border border-gray-200 p-6 rounded-2xl shadow-lg rotate-y-180 backface-hidden">
                       <div className="h-full flex flex-col">
                         <div className="flex items-center justify-between mb-4">
-                          <h3 className="text-2xl font-bold text-white">Voice Comment</h3>
+                          <h3 className="text-2xl font-bold text-gray-900">Voice Comment</h3>
                           {isRecording[song.id] && (
-                            <div className="flex items-center gap-2 text-red-400">
-                              <div className="w-2 h-2 bg-red-400 rounded-full animate-pulse"></div>
+                            <div className="flex items-center gap-2 text-red-500">
+                              <div className="w-2 h-2 bg-red-500 rounded-full animate-pulse"></div>
                               <span className="text-sm">Recording</span>
                             </div>
                           )}
@@ -731,7 +848,7 @@ export default function ArtistPage() {
                         
                         <div className="flex-1 overflow-y-auto mb-4">
                           {!audioBlobs[song.id] && !isRecording[song.id] ? (
-                            <div className="text-gray-400 text-center py-8">
+                            <div className="text-gray-600 text-center py-8">
                               <div className="text-4xl mb-4">🎤</div>
                               <div className="text-lg font-semibold mb-2">Record Your Thoughts</div>
                               <div className="text-sm mb-6">
@@ -742,7 +859,7 @@ export default function ArtistPage() {
                                   e.stopPropagation()
                                   startRecording(song.id)
                                 }}
-                                className="bg-blue-600 hover:bg-blue-700 text-white px-6 py-3 rounded-xl font-semibold transition-colors"
+                                className="bg-[#E55A2B] hover:bg-[#D14A1B] text-white px-6 py-3 rounded-xl font-semibold transition-colors"
                               >
                                 Start Comment
                               </button>
@@ -750,8 +867,8 @@ export default function ArtistPage() {
                           ) : isRecording[song.id] ? (
                             <div className="text-center py-8">
                               <div className="text-4xl mb-4">🔴</div>
-                              <div className="text-lg font-semibold mb-2 text-red-400">Recording...</div>
-                              <div className="text-sm text-gray-400 mb-6">
+                              <div className="text-lg font-semibold mb-2 text-red-500">Recording...</div>
+                              <div className="text-sm text-gray-500 mb-6">
                                 Speak your mind about &quot;{song.title}&quot;
                               </div>
                               <button
@@ -767,8 +884,8 @@ export default function ArtistPage() {
                           ) : showPlayback[song.id] ? (
                             <div className="text-center py-8">
                               <div className="text-4xl mb-4">🎵</div>
-                              <div className="text-lg font-semibold mb-2 text-green-400">Recording Complete!</div>
-                              <div className="text-sm text-gray-400 mb-6">
+                              <div className="text-lg font-semibold mb-2 text-green-600">Recording Complete!</div>
+                              <div className="text-sm text-gray-500 mb-6">
                                 Listen to your comment about &quot;{song.title}&quot;
                               </div>
                               <div className="space-y-3">
@@ -778,7 +895,7 @@ export default function ArtistPage() {
                                     playBackRecording(song.id)
                                   }}
                                   disabled={isPlayingBack[song.id]}
-                                  className="w-full bg-blue-600 hover:bg-blue-700 disabled:bg-blue-800 text-white px-6 py-3 rounded-xl font-semibold transition-colors"
+                                  className="w-full bg-[#E55A2B] hover:bg-[#D14A1B] disabled:bg-[#B83A0B] text-white px-6 py-3 rounded-xl font-semibold transition-colors"
                                 >
                                   {isPlayingBack[song.id] ? 'Playing...' : 'Play Recording'}
                                 </button>
@@ -805,10 +922,10 @@ export default function ArtistPage() {
                           ) : null}
                         </div>
                         
-                        <div className="text-center text-gray-400 text-sm">
+                        <div className="text-center text-gray-500 text-sm">
                           {isRecording[song.id] ? (
                             <div className="flex items-center justify-center gap-2">
-                              <div className="w-2 h-2 bg-red-400 rounded-full animate-pulse"></div>
+                              <div className="w-2 h-2 bg-red-500 rounded-full animate-pulse"></div>
                               <span>Recording your comment...</span>
                             </div>
                           ) : (
@@ -827,26 +944,26 @@ export default function ArtistPage() {
         {/* Rocket Fuel Section */}
         {cartItems.length > 0 && (
           <div className="w-full px-4 md:px-8 lg:px-16 py-8">
-            <div className="bg-blue-800/20 backdrop-blur-md border border-blue-400/30 p-8 rounded-2xl shadow-xl">
+            <div className="bg-white border border-gray-200 p-8 rounded-2xl shadow-lg">
               <div className="text-center mb-6">
-                <h3 className="text-3xl font-bold text-white mb-2">
+                <h3 className="text-3xl font-bold text-gray-900 mb-2">
                   🚀 Your Rocket Fuel
                 </h3>
-                <p className="text-blue-200 text-lg">
-                  Ready to launch these songs to the stars!
+                <p className="text-gray-600 text-lg">
+                  Ready to launch these songs?
                 </p>
               </div>
               
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 mb-6 max-h-96 overflow-y-auto">
                 {cartItems.map((item) => (
-                  <div key={item.songId} className="bg-blue-900/30 border border-blue-400/20 rounded-xl p-4 flex justify-between items-center">
+                  <div key={item.songId} className="bg-orange-50 border border-orange-200 rounded-xl p-4 flex justify-between items-center">
                     <div className="flex-1 min-w-0">
-                      <div className="text-white font-semibold truncate">{item.songTitle}</div>
-                      <div className="text-blue-300 text-sm">Votes: {item.voteCount}</div>
+                      <div className="text-gray-900 font-semibold truncate">{item.songTitle}</div>
+                      <div className="text-black text-sm">Votes: {item.voteCount}</div>
                     </div>
                     <div className="flex items-center gap-3 ml-4">
                       <div className="text-right">
-                        <div className="text-yellow-300 font-bold text-lg">
+                        <div className="text-[#E55A2B] font-bold text-lg">
                           ${(item.voteCount * item.votePrice).toFixed(2)}
                         </div>
                       </div>
@@ -875,17 +992,17 @@ export default function ArtistPage() {
               
               <div className="flex flex-col sm:flex-row items-center justify-between gap-4">
                 <div className="text-center sm:text-left">
-                  <div className="text-white text-xl font-bold">
+                  <div className="text-gray-900 text-xl font-bold">
                     Total: ${cartItems.reduce((sum, item) => sum + (item.voteCount * item.votePrice), 0).toFixed(2)}
                   </div>
-                  <div className="text-blue-300 text-sm">
-                    {cartItems.length} song{cartItems.length !== 1 ? 's' : ''} in your rocket
+                  <div className="text-black text-sm">
+                    {cartItems.length} song{cartItems.length !== 1 ? 's' : ''} as rocket fuel
                   </div>
                 </div>
                 
                 <button
                   onClick={() => router.push('/cart')}
-                  className="bg-gradient-to-r from-red-600 to-orange-500 hover:from-red-700 hover:to-orange-600 text-white font-bold py-3 px-8 rounded-xl transition-all duration-300 flex items-center justify-center gap-3 border-2 border-red-400/80 shadow-lg shadow-orange-500/30 text-lg"
+                  className="bg-[#E55A2B] hover:bg-[#D14A1B] text-white font-bold py-3 px-8 rounded-xl transition-all duration-300 flex items-center justify-center gap-3 shadow-lg text-lg"
                 >
                   <svg
                     xmlns="http://www.w3.org/2000/svg"
@@ -908,11 +1025,11 @@ export default function ArtistPage() {
         {songs.map((song) => 
           showPaymentModal[song.id] && (
             <div key={`payment-modal-${song.id}`} className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
-              <div className="bg-blue-800/20 backdrop-blur-md border border-blue-400/30 rounded-2xl max-w-md w-full p-6">
+              <div className="bg-white border border-gray-200 rounded-2xl max-w-md w-full p-6 shadow-xl">
                 <div className="text-center mb-6">
                   <div className="text-4xl mb-4">🚀</div>
-                  <h3 className="text-xl font-bold text-white mb-2">Rocket Fuel Required!</h3>
-                  <p className="text-blue-200 text-sm">
+                  <h3 className="text-xl font-bold text-gray-900 mb-2">Rocket Fuel Required!</h3>
+                  <p className="text-gray-600 text-sm">
                     To send your voice comment about &quot;{song.title}&quot; to the artist, just add it to your rocket fuel and proceed to blast off before you LaunchThatSong.com!
                   </p>
                 </div>
@@ -920,7 +1037,7 @@ export default function ArtistPage() {
                 <div className="space-y-3">
                   <button
                     onClick={() => handleAddToRocketFuel(song.id)}
-                    className="w-full bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-700 hover:to-blue-800 text-white py-3 px-6 rounded-xl font-semibold transition-all duration-300 flex items-center justify-center gap-2"
+                    className="w-full bg-[#E55A2B] hover:bg-[#D14A1B] text-white py-3 px-6 rounded-xl font-semibold transition-all duration-300 flex items-center justify-center gap-2"
                   >
                     <svg
                       xmlns="http://www.w3.org/2000/svg"
@@ -932,7 +1049,7 @@ export default function ArtistPage() {
                         d="M10.894 2.553a1 1 0 00-1.789 0l-7 14a1 1 0 001.169 1.409l5-1.429A1 1 0 009 15.571V11a1 1 0 112 0v4.571a1 1 0 00.725.962l5 1.428a1 1 0 001.17-1.408l-7-14z"
                       />
                     </svg>
-                    Add To My Rocket Fuel
+                    Add to Rocket Fuel
                   </button>
                   <button
                     onClick={() => handleMaybeLater(song.id)}

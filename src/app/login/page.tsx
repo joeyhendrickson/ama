@@ -1,22 +1,33 @@
 'use client'
 
-import { useState } from 'react'
-import { useRouter } from 'next/navigation'
+import { useState, useEffect } from 'react'
+import { useRouter, useSearchParams } from 'next/navigation'
 import { supabase } from '@/lib/supabaseClient'
 import Link from 'next/link'
 
 export default function LoginPage() {
   const router = useRouter()
+  const searchParams = useSearchParams()
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
+  const [success, setSuccess] = useState('')
   const [userType, setUserType] = useState<'artist' | 'admin' | null>(null)
+
+  // Check for email verification success
+  useEffect(() => {
+    const verified = searchParams.get('verified')
+    if (verified === 'true') {
+      setSuccess('Email verified successfully! You can now log in with your email and password.')
+    }
+  }, [searchParams])
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault()
     setLoading(true)
     setError('')
+    setSuccess('')
 
     try {
       const { data, error } = await supabase.auth.signInWithPassword({
@@ -40,7 +51,7 @@ export default function LoginPage() {
         // Check if user is an artist
         const { data: artist, error: artistError } = await supabase
           .from('artists')
-          .select('id')
+          .select('id, status')
           .eq('email', email)
           .single()
 
@@ -48,7 +59,13 @@ export default function LoginPage() {
           setError('No artist account found with this email')
         } else {
           setUserType('artist')
-          router.push('/artist-dashboard')
+          
+          // Check if artist account is approved
+          if (artist.status === 'pending') {
+            setError('Your account is pending admin approval. You will be notified once approved.')
+          } else {
+            router.push('/artist-dashboard')
+          }
         }
       }
     } catch (error) {
@@ -62,6 +79,7 @@ export default function LoginPage() {
     e.preventDefault()
     setLoading(true)
     setError('')
+    setSuccess('')
 
     try {
       const { data, error } = await supabase.auth.signUp({
@@ -72,7 +90,7 @@ export default function LoginPage() {
       if (error) {
         setError(error.message)
       } else {
-        setError('Please check your email for a confirmation link')
+        setSuccess('Please check your email for a confirmation link')
       }
     } catch (error) {
       setError('An unexpected error occurred')
@@ -82,16 +100,16 @@ export default function LoginPage() {
   }
 
   return (
-    <div className="min-h-screen bg-[#040a12] flex items-center justify-center p-4">
-      <div className="bg-blue-800/20 backdrop-blur-md border border-blue-400/30 p-8 rounded-2xl max-w-md w-full">
+    <div className="min-h-screen bg-white flex items-center justify-center p-4">
+      <div className="bg-white border border-gray-200 p-8 rounded-2xl max-w-md w-full shadow-lg">
         <div className="text-center mb-8">
-          <h1 className="text-3xl font-bold text-white mb-2">Launch That Song</h1>
-          <p className="text-blue-300">Artist & Admin Login</p>
+          <h1 className="text-3xl font-bold text-gray-900 mb-2">Launch That Song</h1>
+          <p className="text-gray-600">Artist & Admin Login</p>
         </div>
 
         <form onSubmit={handleLogin} className="space-y-6">
           <div>
-            <label htmlFor="email" className="block text-blue-300 text-sm font-medium mb-2">
+            <label htmlFor="email" className="block text-gray-700 text-sm font-medium mb-2">
               Email
             </label>
             <input
@@ -99,14 +117,14 @@ export default function LoginPage() {
               type="email"
               value={email}
               onChange={(e) => setEmail(e.target.value)}
-              className="w-full px-4 py-3 bg-blue-900/30 border border-blue-400/30 rounded-lg text-white placeholder-blue-300 focus:outline-none focus:border-blue-500 transition-colors"
+              className="w-full px-4 py-3 bg-gray-50 border border-gray-300 rounded-lg text-gray-900 placeholder-gray-500 focus:outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-500 transition-colors"
               placeholder="your@email.com"
               required
             />
           </div>
 
           <div>
-            <label htmlFor="password" className="block text-blue-300 text-sm font-medium mb-2">
+            <label htmlFor="password" className="block text-gray-700 text-sm font-medium mb-2">
               Password
             </label>
             <input
@@ -114,15 +132,21 @@ export default function LoginPage() {
               type="password"
               value={password}
               onChange={(e) => setPassword(e.target.value)}
-              className="w-full px-4 py-3 bg-blue-900/30 border border-blue-400/30 rounded-lg text-white placeholder-blue-300 focus:outline-none focus:border-blue-500 transition-colors"
+              className="w-full px-4 py-3 bg-gray-50 border border-gray-300 rounded-lg text-gray-900 placeholder-gray-500 focus:outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-500 transition-colors"
               placeholder="••••••••"
               required
             />
           </div>
 
           {error && (
-            <div className="bg-red-900/30 border border-red-400/30 text-red-300 px-4 py-3 rounded-lg text-sm">
+            <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-lg text-sm">
               {error}
+            </div>
+          )}
+
+          {success && (
+            <div className="bg-green-50 border border-green-200 text-green-700 px-4 py-3 rounded-lg text-sm">
+              {success}
             </div>
           )}
 
@@ -130,7 +154,7 @@ export default function LoginPage() {
             <button
               type="submit"
               disabled={loading}
-              className="w-full bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-700 hover:to-blue-800 text-white py-3 px-6 rounded-lg font-semibold transition-all duration-300 disabled:opacity-50 disabled:cursor-not-allowed"
+              className="w-full bg-blue-600 text-white hover:bg-blue-700 py-3 px-6 rounded-lg font-semibold transition-all duration-300 disabled:opacity-50 disabled:cursor-not-allowed"
             >
               {loading ? 'Signing in...' : 'Sign In'}
             </button>
@@ -139,7 +163,7 @@ export default function LoginPage() {
               type="button"
               onClick={handleSignUp}
               disabled={loading}
-              className="w-full bg-gradient-to-r from-green-600 to-green-700 hover:from-green-700 hover:to-green-800 text-white py-3 px-6 rounded-lg font-semibold transition-all duration-300 disabled:opacity-50 disabled:cursor-not-allowed"
+              className="w-full bg-gray-600 hover:bg-gray-700 text-white py-3 px-6 rounded-lg font-semibold transition-all duration-300 disabled:opacity-50 disabled:cursor-not-allowed"
             >
               {loading ? 'Creating account...' : 'Create Artist Account'}
             </button>
@@ -147,16 +171,24 @@ export default function LoginPage() {
         </form>
 
         <div className="mt-8 text-center">
-          <div className="text-blue-300 text-sm mb-4">
+          <div className="text-gray-600 text-sm mb-4">
             <p><strong>Artists:</strong> Use your registered email</p>
             <p><strong>Admins:</strong> Use admin@launchthatsong.com</p>
           </div>
-          <button
-            onClick={() => router.push('/')}
-            className="text-blue-300 hover:text-white transition-colors text-sm"
-          >
-            ← Back to Launch That Song
-          </button>
+          <div className="space-y-2">
+            <Link
+              href="/artist-signup"
+              className="block text-blue-600 hover:text-blue-700 transition-colors text-sm"
+            >
+              → Create New Artist Account
+            </Link>
+            <button
+              onClick={() => router.push('/')}
+              className="text-gray-600 hover:text-gray-900 transition-colors text-sm"
+            >
+              ← Back to Launch That Song
+            </button>
+          </div>
         </div>
       </div>
     </div>

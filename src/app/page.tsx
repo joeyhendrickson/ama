@@ -56,11 +56,11 @@ export default function Home() {
 
   useEffect(() => {
     const fetchData = async () => {
-      // Fetch artists (only approved ones)
+      // Fetch artists (temporarily showing all, not just approved)
       const { data: artistsData, error: artistsError } = await supabase
         .from('artists')
         .select('*')
-        .eq('status', 'approved')
+        // .eq('status', 'approved') // Temporarily commented out to show all artists
         .order('name')
 
       if (artistsError) {
@@ -88,11 +88,11 @@ export default function Home() {
         setArtists(artistsWithDummyData)
       }
 
-      // Fetch recent songs (only approved ones)
+      // Fetch recent songs (temporarily showing all, not just approved)
       const { data: songsData, error: songsError } = await supabase
         .from('songs')
         .select('*')
-        .eq('status', 'approved')
+        // .eq('status', 'approved') // Temporarily commented out to show all songs
         .order('created_at', { ascending: false })
         .limit(5)
       
@@ -239,37 +239,37 @@ export default function Home() {
   return (
     <>
       <section className="text-center py-20 sm:py-32 container mx-auto">
-        <h1 className="text-5xl md:text-7xl font-bold text-white leading-tight">
+        <h1 className="text-5xl md:text-7xl font-bold text-gray-900 leading-tight">
           Vote to Launch
           <br />
           New Songs on Spotify
         </h1>
-        <p className="text-lg md:text-xl text-orange-300/80 mt-6 max-w-2xl mx-auto">
+        <p className="text-lg md:text-xl text-gray-600 mt-6 max-w-2xl mx-auto">
           Support your favorite artists and earn NFTs for launching their songs
         </p>
         <div className="mt-10 flex flex-col sm:flex-row justify-center items-center gap-4">
           <button 
-            className="bg-orange-700 text-white font-semibold py-3 px-8 rounded-lg hover:bg-orange-800 transition-all duration-300 transform hover:scale-105 shadow-lg hover:shadow-xl w-full sm:w-auto"
+            className="bg-[#E55A2B] text-white font-semibold py-3 px-8 rounded-lg hover:bg-[#D14A1B] transition-all duration-300 transform hover:scale-105 shadow-lg hover:shadow-xl w-full sm:w-auto"
             onClick={triggerArtistCardAnimation}
           >
             Explore Songs
           </button>
-          <button 
-            onClick={() => setIsModalOpen(true)}
-            className="bg-transparent border border-orange-500 text-white font-semibold py-3 px-8 rounded-lg hover:bg-orange-500/20 transition-colors w-full sm:w-auto"
+          <Link 
+            href="/artist-signup"
+            className="bg-white text-gray-900 border border-[#E55A2B] font-semibold py-3 px-8 rounded-lg hover:bg-gray-50 transition-colors w-full sm:w-auto text-center"
           >
             Submit Your Song
-          </button>
+          </Link>
         </div>
       </section>
       
       <main className="container mx-auto px-4 md:px-0 pb-20">
-        <h2 className="text-3xl font-bold text-white mb-8 text-center sm:text-left">
+        <h2 className="text-3xl font-bold text-gray-900 mb-8 text-center sm:text-left">
           Featured Artists
         </h2>
 
         {error && (
-          <p className="text-red-500 bg-red-900/50 p-4 rounded-lg text-center mb-6">
+          <p className="text-red-500 bg-red-50 p-4 rounded-lg text-center mb-6">
             Error: {error}
           </p>
         )}
@@ -283,11 +283,11 @@ export default function Home() {
             return (
               <div 
                 key={artist.id} 
-                className={`relative bg-white/10 backdrop-blur-md rounded-2xl p-6 border border-white/20 hover:bg-white/20 transition-all duration-300 cursor-pointer group ${
-                  activeCardIndex === index ? 'animate-card-pulse ring-4 ring-blue-700 ring-opacity-75 shadow-2xl' : ''
+                className={`relative bg-white rounded-2xl p-6 border border-gray-200 hover:shadow-lg transition-all duration-300 cursor-pointer group ${
+                  activeCardIndex === index ? 'ring-4 ring-black ring-opacity-75 shadow-2xl' : ''
                 }`}
                 style={{ 
-                  height: `${Math.min(400 + index * 20, 500)}px`
+                  height: isColumbusCard ? '400px' : '650px'
                 }}
               >
                 <div className={`relative ${imageContainerHeight}`}>
@@ -300,25 +300,25 @@ export default function Home() {
                   <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/20 to-transparent" />
                   <div className="absolute bottom-0 left-0 p-6 text-white w-full">
                     <h3 className="text-3xl font-bold">{artist.name}</h3>
-                    <p className="text-sm text-orange-300/90">{artist.genre}</p>
+                    <p className="text-sm text-gray-200">{artist.genre}</p>
                   </div>
                 </div>
 
                 <div className="p-6">
-                  <div className="w-full bg-gray-700 rounded-full h-3 mb-4">
+                  <div className="w-full bg-gray-200 rounded-full h-3 mb-4">
                     <div 
                       className="bg-black h-3 rounded-full transition-all duration-500"
                       style={{ width: `${artist.vote_percentage}%` }}
                     ></div>
                   </div>
-                  <div className="flex justify-between text-sm text-gray-300 mb-4">
+                  <div className="flex justify-between text-sm text-gray-600 mb-4">
                     <span>{artist.vote_percentage}%</span>
                     <span>Vote now</span>
                   </div>
 
                   <Link href={`/artist/${artist.id}`} className="block w-full">
                     <button 
-                      className="w-full bg-black hover:bg-gray-900 text-white font-bold py-3 px-6 rounded-lg transition-all duration-300 transform hover:scale-105 shadow-lg"
+                      className="w-full bg-black hover:bg-gray-800 text-white font-bold py-3 px-6 rounded-lg transition-all duration-300 transform hover:scale-105 shadow-lg"
                     >
                       Vote Now
                     </button>
@@ -331,17 +331,17 @@ export default function Home() {
       </main>
       
       {/* How It Works Section */}
-      <div className="container mx-auto px-4 mt-80 mb-32" data-section="how-it-works">
+      <div className="container mx-auto px-4 mt-20 mb-32" data-section="how-it-works">
         <div className="grid grid-cols-1 md:grid-cols-3 gap-8 max-w-6xl mx-auto">
           {/* Step 1 */}
           <div className="text-center group">
             <div className="relative mb-6">
-              <div className="w-20 h-20 bg-white rounded-full flex items-center justify-center mx-auto text-3xl font-bold text-black shadow-lg group-hover:scale-110 transition-transform duration-300">
+              <div className="w-20 h-20 bg-black rounded-full flex items-center justify-center mx-auto text-3xl font-bold text-white shadow-lg group-hover:scale-110 transition-transform duration-300">
                 1
               </div>
             </div>
-            <h3 className="text-2xl font-bold text-white mb-4">Vote!</h3>
-            <p className="text-blue-200 leading-relaxed">
+            <h3 className="text-2xl font-bold text-gray-900 mb-4">Vote!</h3>
+            <p className="text-gray-600 leading-relaxed">
               Support your favorite artist by voting for their unreleased song. Every vote counts toward launching their music to the world!
             </p>
           </div>
@@ -349,12 +349,12 @@ export default function Home() {
           {/* Step 2 */}
           <div className="text-center group">
             <div className="relative mb-6">
-              <div className="w-20 h-20 bg-white rounded-full flex items-center justify-center mx-auto text-3xl font-bold text-black shadow-lg group-hover:scale-110 transition-transform duration-300">
+              <div className="w-20 h-20 bg-black rounded-full flex items-center justify-center mx-auto text-3xl font-bold text-white shadow-lg group-hover:scale-110 transition-transform duration-300">
                 2
               </div>
             </div>
-            <h3 className="text-2xl font-bold text-white mb-4">Earn NFT!</h3>
-            <p className="text-blue-200 leading-relaxed">
+            <h3 className="text-2xl font-bold text-gray-900 mb-4">Earn NFT!</h3>
+            <p className="text-gray-600 leading-relaxed">
               Get exclusive limited-edition NFTs with real artist perks: backstage passes, house concerts, private showcases, and more!
             </p>
           </div>
@@ -362,12 +362,12 @@ export default function Home() {
           {/* Step 3 */}
           <div className="text-center group">
             <div className="relative mb-6">
-              <div className="w-20 h-20 bg-white rounded-full flex items-center justify-center mx-auto text-3xl font-bold text-black shadow-lg group-hover:scale-110 transition-transform duration-300">
+              <div className="w-20 h-20 bg-black rounded-full flex items-center justify-center mx-auto text-3xl font-bold text-white shadow-lg group-hover:scale-110 transition-transform duration-300">
                 3
               </div>
             </div>
-            <h3 className="text-2xl font-bold text-white mb-4">Launch That Song!</h3>
-            <p className="text-blue-200 leading-relaxed">
+            <h3 className="text-2xl font-bold text-gray-900 mb-4">Launch That Song!</h3>
+            <p className="text-gray-600 leading-relaxed">
               Watch as your votes help artists reach their launch goals. Track progress in real-time and see the impact of your support!
             </p>
           </div>
@@ -376,7 +376,7 @@ export default function Home() {
         {/* Call to Action */}
         <div className="text-center mt-12">
           <button 
-            className="bg-orange-700 hover:bg-orange-800 text-white font-semibold py-4 px-10 rounded-lg transition-colors text-lg"
+            className="bg-[#E55A2B] hover:bg-[#D14A1B] text-white font-semibold py-4 px-10 rounded-lg transition-colors text-lg"
             onClick={triggerArtistCardAnimation}
           >
             Limited Time: Vote Now and Collect NFTs!
@@ -386,11 +386,11 @@ export default function Home() {
       
       {/* Modal */}
       {isModalOpen && (
-        <div className="fixed inset-0 bg-gradient-to-br from-blue-900 via-blue-800 to-blue-900 flex items-center justify-center p-4 z-50">
+        <div className="fixed inset-0 bg-black flex items-center justify-center p-4 z-50">
           {/* Back Arrow - Fixed Position */}
           <Link 
             href="/" 
-            className="fixed left-4 top-1/2 transform -translate-y-1/2 z-50 inline-flex items-center justify-center w-12 h-12 bg-white backdrop-blur-md border border-white/30 rounded-full text-blue-800 hover:text-blue-900 hover:bg-gray-100 transition-all duration-300 group shadow-lg"
+            className="fixed left-4 top-1/2 transform -translate-y-1/2 z-50 inline-flex items-center justify-center w-12 h-12 bg-white backdrop-blur-md border border-gray-300 rounded-full text-gray-700 hover:text-gray-900 hover:bg-gray-100 transition-all duration-300 group shadow-lg"
             onClick={() => setIsModalOpen(false)}
           >
             <svg
@@ -409,23 +409,23 @@ export default function Home() {
 
           {/* Navbar */}
           <div className="fixed top-0 left-0 right-0 z-40">
-            <div className="sticky top-0 z-50 py-4">
+            <div className="sticky top-0 z-50 py-4 bg-white/95 backdrop-blur-md border-b border-gray-200">
               <div className="container mx-auto flex justify-between items-center px-4 md:px-0">
                 <Link href="/" className="flex items-center gap-2" onClick={() => setIsModalOpen(false)}>
                   <svg
                     xmlns="http://www.w3.org/2000/svg"
                     viewBox="0 0 20 20"
                     fill="currentColor"
-                    className="w-8 h-8 text-orange-500"
+                    className="w-8 h-8 text-[#E55A2B]"
                   >
                     <path
                       d="M10.894 2.553a1 1 0 00-1.789 0l-7 14a1 1 0 001.169 1.409l5-1.429A1 1 0 009 15.571V11a1 1 0 112 0v4.571a1 1 0 00.725.962l5 1.428a1 1 0 001.17-1.408l-7-14z"
                     />
                   </svg>
-                  <span className="text-xl font-bold text-white">LaunchThatSong</span>
+                  <span className="text-xl font-bold text-gray-900">LaunchThatSong</span>
                 </Link>
                 <nav className="hidden md:flex items-center gap-6">
-                  <Link href="/#connect" className="hover:text-orange-400 transition-colors" onClick={() => setIsModalOpen(false)}>
+                  <Link href="/#connect" className="text-gray-700 hover:text-black transition-colors" onClick={() => setIsModalOpen(false)}>
                     Connect
                   </Link>
                   <button 
@@ -438,18 +438,18 @@ export default function Home() {
                         }
                       }, 100)
                     }}
-                    className="hover:text-orange-400 transition-colors bg-transparent border-none text-white cursor-pointer"
+                    className="hover:text-black transition-colors bg-transparent border-none text-gray-700 cursor-pointer"
                   >
                     How It Works
                   </button>
                   <Link
                     href="/login"
-                    className="bg-white/10 backdrop-blur-sm border border-white/20 text-white font-semibold py-2 px-4 rounded-full hover:bg-white/20 transition-colors"
+                    className="bg-[#E55A2B] text-white font-semibold py-2 px-4 rounded-full hover:bg-[#D14A1B] transition-colors"
                     onClick={() => setIsModalOpen(false)}
                   >
                     Login
                   </Link>
-                  <Link href="/cart" className="relative hover:text-orange-400 transition-colors" onClick={() => setIsModalOpen(false)}>
+                  <Link href="/cart" className="relative hover:text-black transition-colors text-gray-700" onClick={() => setIsModalOpen(false)}>
                     <svg
                       xmlns="http://www.w3.org/2000/svg"
                       viewBox="0 0 24 24"
@@ -459,7 +459,7 @@ export default function Home() {
                       <path d="M2.25 2.25a.75.75 0 000 1.5h1.386c.17 0 .318.114.362.278l2.558 9.592a3.752 3.752 0 00-2.806 3.63c0 .414.336.75.75.75h15.75a.75.75 0 000-1.5H5.378A2.25 2.25 0 017.5 15h11.218a.75.75 0 00.674-.421 60.358 60.358 0 002.46-5.23c.18-.487.22-1.01.12-1.521a.75.75 0 00-.728-.654h-12.21l-1.581-5.927A.75.75 0 003.636 2.25H2.25zM3.75 20.25a1.5 1.5 0 113 0 1.5 1.5 0 01-3 0zM16.5 20.25a1.5 1.5 0 113 0 1.5 1.5 0 01-3 0z" />
                     </svg>
                     {cartItems.length > 0 && (
-                      <span className="absolute -top-2 -right-2 bg-orange-700 text-white text-xs font-bold rounded-full h-5 w-5 flex items-center justify-center">
+                      <span className="absolute -top-2 -right-2 bg-black text-white text-xs font-bold rounded-full h-5 w-5 flex items-center justify-center">
                         {cartItems.reduce((acc, item) => acc + item.voteCount, 0)}
                       </span>
                     )}
