@@ -1,7 +1,6 @@
 'use client'
 
 import Link from 'next/link'
-import { useRouter } from 'next/navigation'
 import { useCart } from '@/context/CartContext'
 
 const Logo = () => (
@@ -22,7 +21,6 @@ const Logo = () => (
 )
 
 export default function Navbar() {
-  const router = useRouter()
   const { cartItems } = useCart()
   const totalItems = Array.isArray(cartItems) ? cartItems.reduce((acc, item) => acc + item.voteCount, 0) : 0
 

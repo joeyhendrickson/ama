@@ -150,28 +150,6 @@ const Chatbot = ({ isOpen: externalIsOpen, setIsOpen: externalSetIsOpen, mode, s
     'help': "I'm here to help! You can ask me about voting, artist features, NFTs, how to submit songs, marketing strategies, payment through Stripe, voice comments, or anything else about Launch That Song. What would you like to know?"
   }
 
-  const getBotResponse = (userMessage: string): string => {
-    const lowerMessage = userMessage.toLowerCase()
-    
-    // Check for specific keywords
-    for (const [keyword, response] of Object.entries(knowledgeBase)) {
-      if (lowerMessage.includes(keyword)) {
-        return response
-      }
-    }
-
-    // Default responses for common questions
-    if (lowerMessage.includes('what') || lowerMessage.includes('how') || lowerMessage.includes('?')) {
-      return "Great question! I can help you understand voting, artist features, NFTs, song submission, marketing strategies, payment through Stripe, voice comments, and more. Try asking me something specific like 'How does voting work?' or 'What are the artist perks?' or 'How do I get paid?'"
-    }
-
-    if (lowerMessage.includes('hello') || lowerMessage.includes('hi') || lowerMessage.includes('hey')) {
-      return "Hello! 👋 I'm here to help you understand Launch That Song. Ask me anything about voting, artist features, marketing strategies, payment, voice comments, or how to get started!"
-    }
-
-    return "I'm not sure about that specific question, but I can help you with voting, artist features, NFTs, song submission, marketing strategies, payment through Stripe, voice comments, and how the platform works. Try asking me something like 'How does voting work?' or 'What are the artist perks?' or 'How do I get paid?'"
-  }
-
   // Helper to call OpenAI API
   async function fetchOpenAIResponse(messages: { role: string, content: string }[]) {
     const res = await fetch('/api/openai-chat', {
@@ -216,7 +194,7 @@ const Chatbot = ({ isOpen: externalIsOpen, setIsOpen: externalSetIsOpen, mode, s
       // fallback to static response
       const botResponse: Message = {
         id: (Date.now() + 1).toString(),
-        text: getBotResponse(inputValue),
+        text: "Sorry, I'm having trouble connecting to the AI assistant right now. Please try again later.",
         isUser: false,
         timestamp: new Date()
       }
