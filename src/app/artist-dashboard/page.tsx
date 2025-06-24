@@ -66,6 +66,8 @@ export default function ArtistDashboard() {
   const [uploadForm, setUploadForm] = useState({
     songTitle: '',
     genre: '',
+    voteGoal: 50,
+    votePrice: 1.00,
     songFile: null as File | null
   })
 
@@ -169,9 +171,10 @@ export default function ArtistDashboard() {
 
     const formData = new FormData()
     formData.append('songFile', uploadForm.songFile)
-    formData.append('artistId', artist.id)
     formData.append('songTitle', uploadForm.songTitle)
     formData.append('genre', uploadForm.genre)
+    formData.append('voteGoal', uploadForm.voteGoal.toString())
+    formData.append('votePrice', uploadForm.votePrice.toString())
 
     try {
       const response = await fetch('/api/artist/upload-song', {
@@ -183,7 +186,7 @@ export default function ArtistDashboard() {
 
       if (response.ok && result.success) {
         alert('Song uploaded successfully!')
-        setUploadForm({ songTitle: '', genre: '', songFile: null })
+        setUploadForm({ songTitle: '', genre: '', voteGoal: 50, votePrice: 1.00, songFile: null })
         setUploading(false)
         await fetchSongs(artist.id)
       } else {
@@ -481,7 +484,30 @@ export default function ArtistDashboard() {
                       className="w-full p-3 rounded-lg bg-gray-50 border border-gray-300 text-gray-900 placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                     />
                     <div className="space-y-2">
-                      <label className="text-gray-700 text-sm">Audio File (MP3, max 20MB)</label>
+                      <label className="text-gray-700 text-sm">Vote Goal (1-10,000 votes)</label>
+                      <input
+                        type="number"
+                        min="1"
+                        max="10000"
+                        value={uploadForm.voteGoal}
+                        onChange={(e) => setUploadForm({ ...uploadForm, voteGoal: Number(e.target.value) })}
+                        className="w-full p-3 rounded-lg bg-gray-50 border border-gray-300 text-gray-900 placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <label className="text-gray-700 text-sm">Vote Price ($0.10-$100 per vote)</label>
+                      <input
+                        type="number"
+                        min="0.10"
+                        max="100"
+                        step="0.01"
+                        value={uploadForm.votePrice}
+                        onChange={(e) => setUploadForm({ ...uploadForm, votePrice: Number(e.target.value) })}
+                        className="w-full p-3 rounded-lg bg-gray-50 border border-gray-300 text-gray-900 placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <label className="text-gray-700 text-sm">Audio File (MP3, max 50MB)</label>
                       <input
                         type="file"
                         accept="audio/*"
@@ -504,7 +530,7 @@ export default function ArtistDashboard() {
                       <button
                         onClick={() => {
                           setUploading(false)
-                          setUploadForm({ songTitle: '', genre: '', songFile: null })
+                          setUploadForm({ songTitle: '', genre: '', voteGoal: 50, votePrice: 1.00, songFile: null })
                         }}
                         className="bg-gray-600 hover:bg-gray-700 text-white px-6 py-2 rounded-lg transition-colors"
                       >

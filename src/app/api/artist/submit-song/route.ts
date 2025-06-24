@@ -27,7 +27,7 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    // Check if song is already submitted or approved
+    // Check if song is already submitted for approval
     if (song.submitted_for_approval) {
       return NextResponse.json(
         { success: false, message: 'Song is already submitted for approval' },
@@ -35,9 +35,11 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    if (song.status === 'approved') {
+    // Allow re-submission if song was previously approved but is now private
+    // (removed from public view)
+    if (song.status === 'approved' && song.is_public === true) {
       return NextResponse.json(
-        { success: false, message: 'Song is already approved' },
+        { success: false, message: 'Song is already approved and public' },
         { status: 400 }
       )
     }

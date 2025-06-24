@@ -4,19 +4,60 @@ import { supabase } from '@/lib/supabaseClient'
 export async function POST(request: NextRequest) {
   try {
     const formData = await request.formData()
-    const songFile = formData.get('songFile') as File
-    const artistId = formData.get('artistId') as string
     const songTitle = formData.get('songTitle') as string
     const genre = formData.get('genre') as string
+    const songFile = formData.get('songFile') as File
+    const voteGoal = parseInt(formData.get('voteGoal') as string) || 50
+    const votePrice = parseFloat(formData.get('votePrice') as string) || 1.00
 
-    if (!songFile || !artistId || !songTitle) {
+    if (!songTitle || !songFile) {
       return NextResponse.json(
         { success: false, message: 'Missing required fields' },
         { status: 400 }
       )
     }
 
-    // Check file type
+    // Validate vote goal and price
+    if (voteGoal < 1 || voteGoal > 10000) {
+      return NextResponse.json(
+        { success: false, message: 'Vote goal must be between 1 and 10,000' },
+        { status: 400 }
+      )
+    }
+
+    if (votePrice < 0.10 || votePrice > 100) {
+      return NextResponse.json(
+        { success: false, message: 'Vote price must be between $0.10 and $100' },
+        { status: 400 }
+      )
+    }
+
+    // Get current user
+    const { data: { user }, error: userError } = await supabase.auth.getUser()
+    if (userError || !user) {
+      return NextResponse.json(
+        { success: false, message: 'Authentication required' },
+        { status: 401 }
+      )
+    }
+
+    // Get artist ID
+    const { data: artistData, error: artistError } = await supabase
+      .from('artists')
+      .select('id')
+      .eq('email', user.email)
+      .single()
+
+    if (artistError || !artistData) {
+      return NextResponse.json(
+        { success: false, message: 'Artist profile not found' },
+        { status: 404 }
+      )
+    }
+
+    const artistId = artistData.id
+
+    // Validate file type
     if (!songFile.type.startsWith('audio/')) {
       return NextResponse.json(
         { success: false, message: 'File must be an audio file' },
@@ -24,38 +65,19 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    // Check file size (20MB limit)
-    const maxSize = 20 * 1024 * 1024 // 20MB
-    if (songFile.size > maxSize) {
+    // Validate file size (max 50MB)
+    if (songFile.size > 50 * 1024 * 1024) {
       return NextResponse.json(
-        { success: false, message: 'File size must be less than 20MB' },
-        { status: 400 }
-      )
-    }
-
-    // Check if artist has reached the 20 song limit
-    const { data: existingSongs, error: countError } = await supabase
-      .from('songs')
-      .select('id')
-      .eq('artist_id', artistId)
-
-    if (countError) {
-      return NextResponse.json(
-        { success: false, message: 'Error checking song count' },
-        { status: 500 }
-      )
-    }
-
-    if (existingSongs && existingSongs.length >= 20) {
-      return NextResponse.json(
-        { success: false, message: 'Maximum of 20 songs allowed per artist' },
+        { success: false, message: 'File size must be less than 50MB' },
         { status: 400 }
       )
     }
 
     // Generate unique filename
+    const timestamp = Date.now()
+    const randomString = Math.random().toString(36).substring(2, 15)
     const fileExtension = songFile.name.split('.').pop()
-    const fileName = `${artistId}/${Date.now()}-${Math.random().toString(36).substring(7)}.${fileExtension}`
+    const fileName = `${artistId}/${timestamp}-${randomString}.${fileExtension}`
 
     // Upload file to Supabase Storage
     const { data: uploadData, error: uploadError } = await supabase.storage
@@ -84,15 +106,19 @@ export async function POST(request: NextRequest) {
       originalName: songFile.name
     })
 
-    // Create song record in database - using the correct field names
+    // Create song record in database with custom vote goal and pricing
     const songDataToInsert = {
       title: songTitle,
       artist_id: artistId,
       genre: genre || 'Unknown',
-      vote_goal: 100, // Default goal of 100 votes
+      vote_goal: voteGoal, // Custom vote goal set by artist
+      vote_price: votePrice, // Custom price per vote set by artist
       current_votes: 0, // Start with 0 votes
       original_vote_count: 0, // Start with 0 original votes
-      created_at: new Date().toISOString() // Set current timestamp
+      file_url: urlData.publicUrl, // Save the public URL
+      file_size: songFile.size, // Save the file size
+      created_at: new Date().toISOString(), // Set current timestamp
+      status: 'pending' // New songs are pending admin approval
     }
 
     console.log('Attempting to insert song data:', songDataToInsert)
@@ -121,8 +147,7 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({
       success: true,
       message: 'Song uploaded successfully',
-      song: songData,
-      fileUrl: urlData.publicUrl
+      song: songData
     })
 
   } catch (error) {

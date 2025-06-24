@@ -48,7 +48,7 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({
       success: true,
       message: 'Song removed from public view successfully. Vote count has been preserved.',
-      preservedVotes: song.vote_count
+      preservedVotes: song.current_votes
     })
 
   } catch (error) {

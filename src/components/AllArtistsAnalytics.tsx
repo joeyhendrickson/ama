@@ -10,7 +10,6 @@ interface ArtistAnalyticsSummary {
   pageViews: number
   uniqueVisitors: number
   votes: number
-  clicks: number
   avgSessionTime: number
   totalAudioTime: number
   conversionRate: number
@@ -18,6 +17,8 @@ interface ArtistAnalyticsSummary {
     total: number
     payouts: number
     pending: number
+    platformFees: number
+    platformProfit: number
   }
 }
 
@@ -60,7 +61,6 @@ export default function AllArtistsAnalytics() {
               pageViews: result.data.pageViews,
               uniqueVisitors: result.data.uniqueVisitors,
               votes: result.data.votes,
-              clicks: result.data.clicks,
               avgSessionTime: result.data.avgSessionTimeSeconds,
               totalAudioTime: result.data.totalAudioTimeSeconds,
               conversionRate: parseFloat(result.data.conversionRate.replace('%', '')),
@@ -79,11 +79,16 @@ export default function AllArtistsAnalytics() {
           pageViews: 0,
           uniqueVisitors: 0,
           votes: 0,
-          clicks: 0,
           avgSessionTime: 0,
           totalAudioTime: 0,
           conversionRate: 0,
-          revenue: { total: 0, payouts: 0, pending: 0 }
+          revenue: { 
+            total: 0, 
+            payouts: 0, 
+            pending: 0, 
+            platformFees: 0, 
+            platformProfit: 0 
+          }
         }
       })
 
@@ -106,6 +111,13 @@ export default function AllArtistsAnalytics() {
       const minutes = Math.floor((seconds % 3600) / 60)
       return `${hours}h ${minutes}m`
     }
+  }
+
+  const formatCurrency = (amount: number) => {
+    return new Intl.NumberFormat('en-US', {
+      style: 'currency',
+      currency: 'USD'
+    }).format(amount)
   }
 
   const sortedAnalytics = [...analytics].sort((a, b) => {
@@ -141,16 +153,16 @@ export default function AllArtistsAnalytics() {
     pageViews: acc.pageViews + artist.pageViews,
     uniqueVisitors: acc.uniqueVisitors + artist.uniqueVisitors,
     votes: acc.votes + artist.votes,
-    clicks: acc.clicks + artist.clicks,
     revenue: acc.revenue + artist.revenue.total,
-    payouts: acc.payouts + artist.revenue.payouts
+    payouts: acc.payouts + artist.revenue.payouts,
+    platformProfit: acc.platformProfit + artist.revenue.platformProfit
   }), {
     pageViews: 0,
     uniqueVisitors: 0,
     votes: 0,
-    clicks: 0,
     revenue: 0,
-    payouts: 0
+    payouts: 0,
+    platformProfit: 0
   })
 
   if (loading) {
@@ -180,7 +192,7 @@ export default function AllArtistsAnalytics() {
           <select
             value={timeRange}
             onChange={(e) => setTimeRange(e.target.value)}
-            className="px-3 py-2 border border-gray-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+            className="px-3 py-2 border border-gray-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-[#E55A2B]"
           >
             <option value="7d">Last 7 days</option>
             <option value="30d">Last 30 days</option>
@@ -191,7 +203,7 @@ export default function AllArtistsAnalytics() {
           <select
             value={sortBy}
             onChange={(e) => setSortBy(e.target.value as any)}
-            className="px-3 py-2 border border-gray-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+            className="px-3 py-2 border border-gray-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-[#E55A2B]"
           >
             <option value="pageViews">Page Views</option>
             <option value="votes">Votes</option>
@@ -209,58 +221,78 @@ export default function AllArtistsAnalytics() {
       </div>
 
       {/* Summary Stats */}
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
         <div className="bg-blue-50 p-4 rounded-lg">
-          <div className="text-sm font-medium text-blue-600">Total Page Views</div>
-          <div className="text-2xl font-bold text-blue-800">{totalStats.pageViews.toLocaleString()}</div>
+          <p className="text-sm font-medium text-blue-600">Total Page Views</p>
+          <p className="text-2xl font-bold text-blue-800">{totalStats.pageViews.toLocaleString()}</p>
         </div>
         <div className="bg-green-50 p-4 rounded-lg">
-          <div className="text-sm font-medium text-green-600">Total Votes</div>
-          <div className="text-2xl font-bold text-green-800">{totalStats.votes.toLocaleString()}</div>
+          <p className="text-sm font-medium text-green-600">Total Votes</p>
+          <p className="text-2xl font-bold text-green-800">{totalStats.votes.toLocaleString()}</p>
         </div>
         <div className="bg-purple-50 p-4 rounded-lg">
-          <div className="text-sm font-medium text-purple-600">Total Revenue</div>
-          <div className="text-2xl font-bold text-purple-800">${totalStats.revenue.toFixed(2)}</div>
+          <p className="text-sm font-medium text-purple-600">Total Revenue</p>
+          <p className="text-2xl font-bold text-purple-800">{formatCurrency(totalStats.revenue)}</p>
         </div>
         <div className="bg-orange-50 p-4 rounded-lg">
-          <div className="text-sm font-medium text-orange-600">Total Payouts</div>
-          <div className="text-2xl font-bold text-orange-800">${totalStats.payouts.toFixed(2)}</div>
+          <p className="text-sm font-medium text-orange-600">Platform Profit</p>
+          <p className="text-2xl font-bold text-orange-800">{formatCurrency(totalStats.platformProfit)}</p>
         </div>
       </div>
 
       {/* Artists Table */}
       <div className="overflow-x-auto">
-        <table className="w-full">
+        <table className="min-w-full divide-y divide-gray-200">
           <thead className="bg-gray-50">
             <tr>
-              <th className="px-4 py-3 text-left text-sm font-medium text-gray-700">Artist</th>
-              <th className="px-4 py-3 text-left text-sm font-medium text-gray-700">Page Views</th>
-              <th className="px-4 py-3 text-left text-sm font-medium text-gray-700">Unique Visitors</th>
-              <th className="px-4 py-3 text-left text-sm font-medium text-gray-700">Votes</th>
-              <th className="px-4 py-3 text-left text-sm font-medium text-gray-700">Conversion Rate</th>
-              <th className="px-4 py-3 text-left text-sm font-medium text-gray-700">Avg Session</th>
-              <th className="px-4 py-3 text-left text-sm font-medium text-gray-700">Audio Time</th>
-              <th className="px-4 py-3 text-left text-sm font-medium text-gray-700">Revenue</th>
-              <th className="px-4 py-3 text-left text-sm font-medium text-gray-700">Payouts</th>
+              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Artist</th>
+              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Page Views</th>
+              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Unique Visitors</th>
+              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Votes</th>
+              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Avg Session</th>
+              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Audio Time</th>
+              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Conversion</th>
+              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Revenue</th>
+              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Payouts</th>
+              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Platform Profit</th>
             </tr>
           </thead>
-          <tbody className="divide-y divide-gray-200">
+          <tbody className="bg-white divide-y divide-gray-200">
             {sortedAnalytics.map((artist) => (
               <tr key={artist.artistId} className="hover:bg-gray-50">
-                <td className="px-4 py-4">
+                <td className="px-6 py-4 whitespace-nowrap">
                   <div>
-                    <div className="font-medium text-gray-900">{artist.artistName}</div>
+                    <div className="text-sm font-medium text-gray-900">{artist.artistName}</div>
                     <div className="text-sm text-gray-500">{artist.artistEmail}</div>
                   </div>
                 </td>
-                <td className="px-4 py-4 text-sm text-gray-900">{artist.pageViews.toLocaleString()}</td>
-                <td className="px-4 py-4 text-sm text-gray-900">{artist.uniqueVisitors.toLocaleString()}</td>
-                <td className="px-4 py-4 text-sm text-gray-900">{artist.votes.toLocaleString()}</td>
-                <td className="px-4 py-4 text-sm text-gray-900">{artist.conversionRate.toFixed(1)}%</td>
-                <td className="px-4 py-4 text-sm text-gray-900">{formatTime(artist.avgSessionTime)}</td>
-                <td className="px-4 py-4 text-sm text-gray-900">{formatTime(artist.totalAudioTime)}</td>
-                <td className="px-4 py-4 text-sm font-medium text-green-600">${artist.revenue.total.toFixed(2)}</td>
-                <td className="px-4 py-4 text-sm font-medium text-blue-600">${artist.revenue.payouts.toFixed(2)}</td>
+                <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                  {artist.pageViews.toLocaleString()}
+                </td>
+                <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                  {artist.uniqueVisitors.toLocaleString()}
+                </td>
+                <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                  {artist.votes.toLocaleString()}
+                </td>
+                <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                  {formatTime(artist.avgSessionTime)}
+                </td>
+                <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                  {formatTime(artist.totalAudioTime)}
+                </td>
+                <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                  {artist.conversionRate.toFixed(2)}%
+                </td>
+                <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                  {formatCurrency(artist.revenue.total)}
+                </td>
+                <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                  {formatCurrency(artist.revenue.payouts)}
+                </td>
+                <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                  {formatCurrency(artist.revenue.platformProfit)}
+                </td>
               </tr>
             ))}
           </tbody>
@@ -268,8 +300,8 @@ export default function AllArtistsAnalytics() {
       </div>
 
       {sortedAnalytics.length === 0 && (
-        <div className="text-center py-8 text-gray-500">
-          No analytics data available for the selected time period
+        <div className="text-center py-8">
+          <p className="text-gray-500">No analytics data available</p>
         </div>
       )}
     </div>

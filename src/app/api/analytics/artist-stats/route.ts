@@ -37,31 +37,25 @@ export async function GET(request: NextRequest) {
 
     // Get page views
     const { data: pageViews, error: pageViewsError } = await supabase
-      .from('artist_analytics')
+      .from('artist_page_views')
       .select('id')
       .eq('artist_id', artistId)
-      .eq('event_type', 'pageview')
       .gte('timestamp', startDate.toISOString())
 
-    // Get votes
-    const { data: votes, error: votesError } = await supabase
-      .from('artist_analytics')
-      .select('id')
+    // Get unique visitors (by IP)
+    const { data: uniqueVisitors, error: visitorsError } = await supabase
+      .from('artist_page_views')
+      .select('visitor_ip')
       .eq('artist_id', artistId)
-      .eq('event_type', 'vote')
       .gte('timestamp', startDate.toISOString())
 
-    // Get clicks (excluding votes)
-    const { data: clicks, error: clicksError } = await supabase
-      .from('artist_analytics')
-      .select('id')
-      .eq('artist_id', artistId)
-      .eq('event_type', 'click')
-      .gte('timestamp', startDate.toISOString())
+    const uniqueVisitorCount = uniqueVisitors 
+      ? new Set(uniqueVisitors.map(v => v.visitor_ip)).size
+      : 0
 
     // Get average session time
     const { data: sessions, error: sessionsError } = await supabase
-      .from('user_sessions')
+      .from('visitor_sessions')
       .select('total_time_seconds')
       .eq('artist_id', artistId)
       .gte('start_time', startDate.toISOString())
@@ -69,23 +63,35 @@ export async function GET(request: NextRequest) {
 
     // Get audio listening time
     const { data: audioSessions, error: audioError } = await supabase
-      .from('audio_sessions')
+      .from('audio_listening_sessions')
       .select('duration_seconds')
       .eq('artist_id', artistId)
       .gte('start_time', startDate.toISOString())
       .not('duration_seconds', 'is', null)
 
     // Get revenue data
-    const { data: revenue, error: revenueError } = await supabase
+    const { data: artistRevenue, error: revenueError } = await supabase
       .from('artist_revenue')
       .select('*')
       .eq('artist_id', artistId)
       .single()
 
+    // Get song-specific revenue
+    const { data: songRevenue, error: songRevenueError } = await supabase
+      .from('song_revenue')
+      .select('*')
+      .eq('artist_id', artistId)
+
+    // Get purchase transactions
+    const { data: transactions, error: transactionsError } = await supabase
+      .from('purchase_transactions')
+      .select('*')
+      .eq('artist_id', artistId)
+      .gte('purchase_date', startDate.toISOString())
+
     // Calculate totals
     const totalPageViews = pageViews?.length || 0
-    const totalVotes = votes?.length || 0
-    const totalClicks = clicks?.length || 0
+    const totalVotes = transactions?.length || 0 // Assuming each transaction represents a vote/purchase
     
     const avgSessionTime = sessions && sessions.length > 0 
       ? sessions.reduce((sum, session) => sum + (session.total_time_seconds || 0), 0) / sessions.length
@@ -95,47 +101,64 @@ export async function GET(request: NextRequest) {
       ? audioSessions.reduce((sum, session) => sum + (session.duration_seconds || 0), 0)
       : 0
 
-    // Get unique visitors (by IP)
-    const { data: uniqueVisitors, error: visitorsError } = await supabase
-      .from('artist_analytics')
-      .select('ip_address')
-      .eq('artist_id', artistId)
-      .eq('event_type', 'pageview')
-      .gte('timestamp', startDate.toISOString())
+    // Calculate revenue metrics
+    const totalRevenue = artistRevenue?.total_revenue || 0
+    const totalPayouts = artistRevenue?.total_payouts || 0
+    const pendingPayouts = artistRevenue?.pending_payouts || 0
+    const platformFees = artistRevenue?.platform_fees || 0
+    const platformProfit = platformFees
 
-    const uniqueVisitorCount = uniqueVisitors 
-      ? new Set(uniqueVisitors.map(v => v.ip_address)).size
-      : 0
-
-    // Get conversion rate (votes per page view)
+    // Get conversion rate (purchases per page view)
     const conversionRate = totalPageViews > 0 
       ? (totalVotes / totalPageViews * 100).toFixed(2)
       : '0.00'
+
+    // Calculate song-specific metrics
+    const songMetrics = songRevenue?.map(song => ({
+      songId: song.song_id,
+      totalRevenue: song.total_revenue,
+      platformFee: song.platform_fee,
+      artistPayout: song.artist_payout,
+      purchaseCount: song.purchase_count
+    })) || []
 
     return NextResponse.json({
       success: true,
       data: {
         artistId,
         timeRange,
+        // Page Views and Visitors
         pageViews: totalPageViews,
         uniqueVisitors: uniqueVisitorCount,
         votes: totalVotes,
-        clicks: totalClicks,
+        
+        // Time Metrics
         avgSessionTimeSeconds: Math.round(avgSessionTime),
         avgSessionTimeFormatted: formatTime(avgSessionTime),
         totalAudioTimeSeconds: totalAudioTime,
         totalAudioTimeFormatted: formatTime(totalAudioTime),
-        conversionRate: `${conversionRate}%`,
+        
+        // Revenue Metrics
         revenue: {
-          total: revenue?.total_revenue || 0,
-          payouts: revenue?.total_payouts || 0,
-          pending: revenue?.pending_payouts || 0
+          total: totalRevenue,
+          payouts: totalPayouts,
+          pending: pendingPayouts,
+          platformFees: platformFees,
+          platformProfit: platformProfit
         },
+        
+        // Engagement Metrics
         engagement: {
           avgTimeOnPage: formatTime(avgSessionTime),
           audioEngagement: totalAudioTime > 0 ? formatTime(totalAudioTime) : 'No audio data',
-          clickThroughRate: totalPageViews > 0 ? (totalClicks / totalPageViews * 100).toFixed(2) + '%' : '0%'
-        }
+          clickThroughRate: totalPageViews > 0 ? (totalVotes / totalPageViews * 100).toFixed(2) + '%' : '0%'
+        },
+        
+        // Conversion
+        conversionRate: `${conversionRate}%`,
+        
+        // Song-specific data
+        songs: songMetrics
       }
     })
 

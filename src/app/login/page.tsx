@@ -14,14 +14,31 @@ export default function LoginPage() {
   const [error, setError] = useState('')
   const [success, setSuccess] = useState('')
   const [userType, setUserType] = useState<'artist' | 'admin' | null>(null)
+  const [showForgotPassword, setShowForgotPassword] = useState(false)
+  const [resetEmailSent, setResetEmailSent] = useState(false)
 
-  // Check for email verification success
+  // This useEffect hook is crucial for handling the auth callback.
+  // It listens for the SIGNED_IN event which Supabase triggers
+  // after a user clicks the confirmation link.
   useEffect(() => {
-    const verified = searchParams.get('verified')
-    if (verified === 'true') {
-      setSuccess('Email verified successfully! You can now log in with your email and password.')
+    // This is the correct way to handle the auth state change.
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
+      // This event fires automatically after the user clicks the verification link.
+      if (event === 'SIGNED_IN') {
+        setSuccess('✅ Email verified successfully! You can now log in.');
+      }
+    });
+
+    // This part just shows a helpful message while Supabase works in the background.
+    if (searchParams.get('verified')) {
+      setSuccess('Verifying email, please wait...');
     }
-  }, [searchParams])
+    
+    // This cleans up the listener when you navigate away.
+    return () => {
+      subscription?.unsubscribe();
+    };
+  }, [searchParams]);
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -30,19 +47,31 @@ export default function LoginPage() {
     setSuccess('')
 
     try {
+      console.log('Attempting login with email:', email)
       const { data, error } = await supabase.auth.signInWithPassword({
         email,
         password,
       })
 
       if (error) {
+        console.log('Auth error:', error)
         setError(error.message)
       } else if (data.user) {
-        // Check if user is an admin first
-        const isAdmin = email.includes('admin') || email.includes('launchthatsong.com')
+        console.log('User authenticated:', data.user.email)
         
-        if (isAdmin) {
-          // Check if admin exists in admin table or use email pattern
+        // Check if user is an admin using the admin_users table (by email)
+        const { data: adminUser, error: adminError } = await supabase
+          .from('admin_users')
+          .select('id, role, is_active')
+          .eq('email', email)
+          .eq('role', 'admin')
+          .single()
+        
+        console.log('Admin check result:', { adminUser, adminError })
+        
+        if (!adminError && adminUser) {
+          // User is an admin
+          console.log('Admin user authenticated:', adminUser)
           setUserType('admin')
           router.push('/admin-dashboard')
           return
@@ -55,8 +84,10 @@ export default function LoginPage() {
           .eq('email', email)
           .single()
 
+        console.log('Artist check result:', { artist, artistError })
+
         if (artistError || !artist) {
-          setError('No artist account found with this email')
+          setError('No artist or admin account found with this email')
         } else {
           setUserType('artist')
           
@@ -69,28 +100,34 @@ export default function LoginPage() {
         }
       }
     } catch (error) {
+      console.log('Unexpected error:', error)
       setError('An unexpected error occurred')
     } finally {
       setLoading(false)
     }
   }
 
-  const handleSignUp = async (e: React.FormEvent) => {
+  const handleForgotPassword = async (e: React.FormEvent) => {
     e.preventDefault()
+    if (!email.trim()) {
+      setError('Please enter your email address')
+      return
+    }
+
     setLoading(true)
     setError('')
     setSuccess('')
 
     try {
-      const { data, error } = await supabase.auth.signUp({
-        email,
-        password,
+      const { error } = await supabase.auth.resetPasswordForEmail(email, {
+        redirectTo: `${window.location.origin}/login?reset=true`,
       })
 
       if (error) {
         setError(error.message)
       } else {
-        setSuccess('Please check your email for a confirmation link')
+        setResetEmailSent(true)
+        setSuccess('Password reset link sent to your email! Check your inbox and spam folder.')
       }
     } catch (error) {
       setError('An unexpected error occurred')
@@ -99,12 +136,89 @@ export default function LoginPage() {
     }
   }
 
+  const handleBackToLogin = () => {
+    setShowForgotPassword(false)
+    setResetEmailSent(false)
+    setError('')
+    setSuccess('')
+  }
+
+  if (showForgotPassword) {
+    return (
+      <div className="min-h-screen bg-white flex items-center justify-center p-4">
+        <div className="bg-white border border-gray-200 p-8 rounded-2xl max-w-md w-full shadow-lg">
+          <div className="text-center mb-8">
+            <h1 className="text-3xl font-bold text-gray-900 mb-2">Reset Password</h1>
+            <p className="text-gray-600">Enter your email to receive a reset link</p>
+          </div>
+
+          <form onSubmit={handleForgotPassword} className="space-y-6">
+            <div>
+              <label htmlFor="reset-email" className="block text-gray-700 text-sm font-medium mb-2">
+                Email
+              </label>
+              <input
+                id="reset-email"
+                type="email"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                className="w-full px-4 py-3 bg-gray-50 border border-gray-300 rounded-lg text-gray-900 placeholder-gray-500 focus:outline-none focus:border-[#E55A2B] focus:ring-2 focus:ring-[#E55A2B] transition-colors"
+                placeholder="your@email.com"
+                required
+              />
+            </div>
+
+            {error && (
+              <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-lg text-sm">
+                {error}
+              </div>
+            )}
+
+            {success && (
+              <div className="bg-green-50 border border-green-200 text-green-700 px-4 py-3 rounded-lg text-sm">
+                {success}
+              </div>
+            )}
+
+            <div className="space-y-3">
+              <button
+                type="submit"
+                disabled={loading || resetEmailSent}
+                className="w-full bg-[#E55A2B] text-white hover:bg-[#D14A1B] py-3 px-6 rounded-lg font-semibold transition-all duration-300 disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                {loading ? 'Sending...' : resetEmailSent ? 'Email Sent!' : 'Send Reset Link'}
+              </button>
+
+              <button
+                type="button"
+                onClick={handleBackToLogin}
+                disabled={loading}
+                className="w-full bg-gray-600 hover:bg-gray-700 text-white py-3 px-6 rounded-lg font-semibold transition-all duration-300 disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                Back to Login
+              </button>
+            </div>
+          </form>
+
+          <div className="mt-8 text-center">
+            <button
+              onClick={() => router.push('/')}
+              className="text-gray-600 hover:text-gray-900 transition-colors text-sm"
+            >
+              ← Back to Launch That Song
+            </button>
+          </div>
+        </div>
+      </div>
+    )
+  }
+
   return (
     <div className="min-h-screen bg-white flex items-center justify-center p-4">
       <div className="bg-white border border-gray-200 p-8 rounded-2xl max-w-md w-full shadow-lg">
         <div className="text-center mb-8">
           <h1 className="text-3xl font-bold text-gray-900 mb-2">Launch That Song</h1>
-          <p className="text-gray-600">Artist & Admin Login</p>
+          <p className="text-gray-600">Artist Sign Up and Login</p>
         </div>
 
         <form onSubmit={handleLogin} className="space-y-6">
@@ -117,7 +231,7 @@ export default function LoginPage() {
               type="email"
               value={email}
               onChange={(e) => setEmail(e.target.value)}
-              className="w-full px-4 py-3 bg-gray-50 border border-gray-300 rounded-lg text-gray-900 placeholder-gray-500 focus:outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-500 transition-colors"
+              className="w-full px-4 py-3 bg-gray-50 border border-gray-300 rounded-lg text-gray-900 placeholder-gray-500 focus:outline-none focus:border-[#E55A2B] focus:ring-2 focus:ring-[#E55A2B] transition-colors"
               placeholder="your@email.com"
               required
             />
@@ -132,7 +246,7 @@ export default function LoginPage() {
               type="password"
               value={password}
               onChange={(e) => setPassword(e.target.value)}
-              className="w-full px-4 py-3 bg-gray-50 border border-gray-300 rounded-lg text-gray-900 placeholder-gray-500 focus:outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-500 transition-colors"
+              className="w-full px-4 py-3 bg-gray-50 border border-gray-300 rounded-lg text-gray-900 placeholder-gray-500 focus:outline-none focus:border-[#E55A2B] focus:ring-2 focus:ring-[#E55A2B] transition-colors"
               placeholder="••••••••"
               required
             />
@@ -154,39 +268,33 @@ export default function LoginPage() {
             <button
               type="submit"
               disabled={loading}
-              className="w-full bg-blue-600 text-white hover:bg-blue-700 py-3 px-6 rounded-lg font-semibold transition-all duration-300 disabled:opacity-50 disabled:cursor-not-allowed"
+              className="w-full bg-[#E55A2B] text-white hover:bg-[#D14A1B] py-3 px-6 rounded-lg font-semibold transition-all duration-300 disabled:opacity-50 disabled:cursor-not-allowed"
             >
               {loading ? 'Signing in...' : 'Sign In'}
             </button>
 
-            <button
-              type="button"
-              onClick={handleSignUp}
-              disabled={loading}
-              className="w-full bg-gray-600 hover:bg-gray-700 text-white py-3 px-6 rounded-lg font-semibold transition-all duration-300 disabled:opacity-50 disabled:cursor-not-allowed"
+            <Link
+              href="/artist-signup"
+              className="w-full bg-gray-600 hover:bg-gray-700 text-white py-3 px-6 rounded-lg font-semibold transition-all duration-300 disabled:opacity-50 disabled:cursor-not-allowed inline-block text-center"
             >
-              {loading ? 'Creating account...' : 'Create Artist Account'}
-            </button>
+              Create Artist Account
+            </Link>
           </div>
         </form>
 
         <div className="mt-8 text-center">
-          <div className="text-gray-600 text-sm mb-4">
-            <p><strong>Artists:</strong> Use your registered email</p>
-            <p><strong>Admins:</strong> Use admin@launchthatsong.com</p>
-          </div>
           <div className="space-y-2">
-            <Link
-              href="/artist-signup"
-              className="block text-blue-600 hover:text-blue-700 transition-colors text-sm"
+            <button
+              onClick={() => setShowForgotPassword(true)}
+              className="block text-black hover:text-gray-700 transition-colors text-sm text-center w-full font-bold"
             >
-              → Create New Artist Account
-            </Link>
+              Forgot your Password?
+            </button>
             <button
               onClick={() => router.push('/')}
               className="text-gray-600 hover:text-gray-900 transition-colors text-sm"
             >
-              ← Back to Launch That Song
+              ← Back to Homepage
             </button>
           </div>
         </div>

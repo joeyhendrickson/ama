@@ -20,9 +20,11 @@ interface Song {
   id: string
   artist_id: string
   title: string
-  audio_url: string
+  audio_url?: string
+  file_url?: string
   vote_count: number
   vote_goal: number
+  vote_price?: number
 }
 
 export default function ArtistPage() {
@@ -167,6 +169,8 @@ export default function ArtistPage() {
         .from('songs')
         .select('*')
         .eq('artist_id', id)
+        .eq('is_public', true)
+        .eq('status', 'approved')
 
       if (error) {
         console.error('Error fetching songs:', error.message)
@@ -196,14 +200,15 @@ export default function ArtistPage() {
       songTitle: song.title,
       artistId: song.artist_id,
       voteCount: 1,
-      votePrice: 1.00
+      votePrice: song.vote_price || 1.00
     })
     
     // Track vote event
     trackEvent('vote', {
       songId: song.id,
       songTitle: song.title,
-      voteCount: 1
+      voteCount: 1,
+      votePrice: song.vote_price || 1.00
     })
   }
 
@@ -371,7 +376,7 @@ export default function ArtistPage() {
   }
 
   const submitVoiceComment = async (songId: string) => {
-    const songInCart = cartItems.find(item => item.songId === songId)
+    const songInCart = Array.isArray(cartItems) ? cartItems.find(item => item.songId === songId) : undefined
     if (!songInCart || songInCart.voteCount === 0) {
       setShowPaymentModal(prev => ({
         ...prev,
@@ -525,7 +530,7 @@ export default function ArtistPage() {
   
   const previousArtist = getPreviousArtist()
   const nextArtist = getNextArtist()
-  const totalVotesInCart = cartItems.reduce((sum, item) => sum + item.voteCount, 0)
+  const totalVotesInCart = Array.isArray(cartItems) ? cartItems.reduce((sum, item) => sum + item.voteCount, 0) : 0
   const fuelPercentage = Math.min((totalVotesInCart / 50) * 100, 100) // Assuming 50 votes is a full tank
 
   return (
@@ -662,7 +667,7 @@ export default function ArtistPage() {
 
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
             {songs.map((song) => {
-              const cartItem = cartItems.find(item => item.songId === song.id)
+              const cartItem = Array.isArray(cartItems) ? cartItems.find(item => item.songId === song.id) : undefined
               const totalVotes = (song.vote_count || 0) + (cartItem?.voteCount || 0)
               const votePercentage = getVotePercentage(totalVotes, song.vote_goal || 100)
               const isFlipped = flippedCards[song.id] || false
@@ -683,7 +688,7 @@ export default function ArtistPage() {
                         {song.title}
                       </h3>
 
-                      {song.audio_url ? (
+                      {(song.audio_url || song.file_url) ? (
                         <div className="mb-6">
                           <div className="bg-gray-50 border border-gray-200 rounded-xl p-4">
                             <div className="flex items-center gap-3 mb-3">
@@ -748,7 +753,7 @@ export default function ArtistPage() {
                             {/* Hidden Audio Element */}
                             <audio 
                               id={`audio-${song.id}`}
-                              src={song.audio_url}
+                              src={song.audio_url || song.file_url}
                               onTimeUpdate={(e) => {
                                 const audio = e.target as HTMLAudioElement
                                 const progress = document.getElementById(`progress-${song.id}`)
@@ -796,8 +801,8 @@ export default function ArtistPage() {
                           />
                         </div>
                         <div className="flex items-center justify-between text-xs text-gray-500 mt-2">
-                          <span>Price per vote: $1.00</span>
-                          <span>Total: ${(cartItem?.voteCount || 0) * 1.00}</span>
+                          <span>Price per vote: ${song.vote_price?.toFixed(2) || '1.00'}</span>
+                          <span>Total: ${(cartItem?.voteCount || 0) * (song.vote_price || 1.00)}</span>
                         </div>
                       </div>
 
@@ -942,7 +947,7 @@ export default function ArtistPage() {
         </div>
 
         {/* Rocket Fuel Section */}
-        {cartItems.length > 0 && (
+        {Array.isArray(cartItems) && cartItems.length > 0 && (
           <div className="w-full px-4 md:px-8 lg:px-16 py-8">
             <div className="bg-white border border-gray-200 p-8 rounded-2xl shadow-lg">
               <div className="text-center mb-6">
@@ -993,11 +998,11 @@ export default function ArtistPage() {
               <div className="flex flex-col sm:flex-row items-center justify-between gap-4">
                 <div className="text-center sm:text-left">
                   <div className="text-gray-900 text-xl font-bold">
-                    Total: ${cartItems.reduce((sum, item) => sum + (item.voteCount * item.votePrice), 0).toFixed(2)}
+                    Total: ${Array.isArray(cartItems) ? cartItems.reduce((sum, item) => sum + (item.voteCount * item.votePrice), 0).toFixed(2) : '0.00'}
                   </div>
-                  <div className="text-black text-sm">
-                    {cartItems.length} song{cartItems.length !== 1 ? 's' : ''} as rocket fuel
-                  </div>
+                  <p className="text-gray-600">
+                    {Array.isArray(cartItems) ? cartItems.length : 0} song{Array.isArray(cartItems) && cartItems.length !== 1 ? 's' : ''} as rocket fuel
+                  </p>
                 </div>
                 
                 <button

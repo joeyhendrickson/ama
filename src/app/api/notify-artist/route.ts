@@ -25,6 +25,17 @@ export async function POST(request: NextRequest) {
 
     // Handle signup confirmation email
     if (type === 'signup_confirmation') {
+      console.log('Sending signup confirmation email to:', email)
+      
+      // Check if email credentials are available
+      if (!process.env.EMAIL_USER || !process.env.EMAIL_PASS) {
+        console.error('Email credentials not configured')
+        return NextResponse.json(
+          { success: false, message: 'Email service not configured' },
+          { status: 500 }
+        )
+      }
+
       const loginUrl = `${process.env.NEXT_PUBLIC_BASE_URL}/login?verified=true`
       
       const mailOptions = {
@@ -80,13 +91,23 @@ export async function POST(request: NextRequest) {
         `
       }
 
-      await transporter.sendMail(mailOptions)
-
-      return NextResponse.json({ 
-        success: true, 
-        message: 'Signup confirmation email sent successfully',
-        artistName
-      })
+      try {
+        await transporter.sendMail(mailOptions)
+        console.log('Signup confirmation email sent successfully to:', email)
+        
+        return NextResponse.json({ 
+          success: true, 
+          message: 'Signup confirmation email sent successfully',
+          artistName
+        })
+      } catch (emailError) {
+        console.error('Failed to send signup confirmation email:', emailError)
+        const errorMessage = emailError instanceof Error ? emailError.message : 'Unknown error'
+        return NextResponse.json(
+          { success: false, message: 'Failed to send confirmation email: ' + errorMessage },
+          { status: 500 }
+        )
+      }
     }
 
     // Handle voice comment notifications (existing functionality)

@@ -39,10 +39,28 @@ export const CartProvider = ({ children }: { children: ReactNode }) => {
   const [cartItems, setCartItems] = useState<CartItem[]>([])
   const [lastVisitedArtist, setLastVisitedArtistState] = useState<string | null>(null)
 
+  // Function to reset corrupted cart data
+  const resetCorruptedCart = () => {
+    console.warn('Resetting corrupted cart data')
+    setCartItems([])
+    localStorage.removeItem('cart')
+  }
+
   useEffect(() => {
     const storedCart = localStorage.getItem('cart')
     if (storedCart) {
-      setCartItems(JSON.parse(storedCart))
+      try {
+        const parsedCart = JSON.parse(storedCart)
+        // Ensure parsed data is an array
+        if (Array.isArray(parsedCart)) {
+          setCartItems(parsedCart)
+        } else {
+          resetCorruptedCart()
+        }
+      } catch (error) {
+        console.error('Error parsing cart data from localStorage:', error)
+        resetCorruptedCart()
+      }
     }
     
     const storedLastArtist = localStorage.getItem('lastVisitedArtist')
@@ -63,20 +81,24 @@ export const CartProvider = ({ children }: { children: ReactNode }) => {
 
   const addToCart = (item: CartItem) => {
     setCartItems(prev => {
-      const existing = prev.find(i => i.songId === item.songId)
+      const currentItems = Array.isArray(prev) ? prev : []
+      const existing = currentItems.find(i => i.songId === item.songId)
       if (existing) {
-        return prev.map(i =>
+        return currentItems.map(i =>
           i.songId === item.songId
             ? { ...i, voteCount: i.voteCount + (item.voteCount || 1) }
             : i
         )
       }
-      return [...prev, { ...item, voteCount: item.voteCount || 1 }]
+      return [...currentItems, { ...item, voteCount: item.voteCount || 1 }]
     })
   }
 
   const removeFromCart = (songId: string) => {
-    setCartItems(prev => prev.filter(i => i.songId !== songId))
+    setCartItems(prev => {
+      const currentItems = Array.isArray(prev) ? prev : []
+      return currentItems.filter(i => i.songId !== songId)
+    })
   }
 
   const clearCart = () => setCartItems([])
@@ -86,33 +108,35 @@ export const CartProvider = ({ children }: { children: ReactNode }) => {
   }
 
   const addVoiceComment = (songId: string, voiceComment: VoiceComment) => {
-    setCartItems(prev => 
-      prev.map(item => 
+    setCartItems(prev => {
+      const currentItems = Array.isArray(prev) ? prev : []
+      return currentItems.map(item => 
         item.songId === songId 
           ? { ...item, voiceComment }
           : item
       )
-    )
+    })
   }
 
   const removeVoiceComment = (songId: string) => {
-    setCartItems(prev => 
-      prev.map(item => 
+    setCartItems(prev => {
+      const currentItems = Array.isArray(prev) ? prev : []
+      return currentItems.map(item => 
         item.songId === songId 
           ? { ...item, voiceComment: undefined }
           : item
       )
-    )
+    })
   }
 
   const getVoiceComment = (songId: string) => {
-    const item = cartItems.find(i => i.songId === songId)
+    const item = Array.isArray(cartItems) ? cartItems.find(i => i.songId === songId) : undefined
     return item?.voiceComment
   }
 
   return (
     <CartContext.Provider value={{ 
-      cartItems, 
+      cartItems: Array.isArray(cartItems) ? cartItems : [], 
       lastVisitedArtist, 
       addToCart, 
       removeFromCart, 

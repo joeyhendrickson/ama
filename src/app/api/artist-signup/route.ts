@@ -12,7 +12,6 @@ export async function POST(request: NextRequest) {
     const songName = formData.get('songName') as string
     const bio = formData.get('bio') as string
     const website = formData.get('website') as string
-    const message = formData.get('message') as string
     const songFile = formData.get('songFile') as File
     const bioImage = formData.get('bioImage') as File
 
@@ -80,8 +79,9 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    // Upload bio image to Supabase Storage
-    const bioImageName = `bio-${Date.now()}-${bioImage.name}`
+    // Sanitize and upload bio image
+    const sanitizedBioImageName = bioImage.name.replace(/[^a-zA-Z0-9.\-]/g, '_');
+    const bioImageName = `bio-${Date.now()}-${sanitizedBioImageName}`;
     const { data: bioUploadData, error: bioUploadError } = await supabase.storage
       .from('artist-images')
       .upload(bioImageName, bioImage)
@@ -99,8 +99,9 @@ export async function POST(request: NextRequest) {
       .from('artist-images')
       .getPublicUrl(bioImageName)
 
-    // Upload song file to Supabase Storage
-    const songFileName = `${Date.now()}-${songFile.name}`
+    // Sanitize and upload song file
+    const sanitizedSongFileName = songFile.name.replace(/[^a-zA-Z0-9.\-]/g, '_');
+    const songFileName = `${Date.now()}-${sanitizedSongFileName}`;
     const { data: uploadData, error: uploadError } = await supabase.storage
       .from('songs')
       .upload(songFileName, songFile)
@@ -127,7 +128,7 @@ export async function POST(request: NextRequest) {
         email: email,
         bio: bio,
         image_url: bioUrlData.publicUrl,
-        website_url: website || null,
+        website_link: website || null,
         status: 'pending', // Will be approved by admin
         created_at: new Date().toISOString(),
         updated_at: new Date().toISOString()
@@ -169,7 +170,39 @@ export async function POST(request: NextRequest) {
 
     // Send custom confirmation email
     try {
-      const emailResponse = await fetch(`${request.nextUrl.origin}/api/notify-artist`, {
+      console.log('Attempting to send custom confirmation email to:', email)
+      
+      // Check if email environment variables are set
+      if (!process.env.EMAIL_USER || !process.env.EMAIL_PASS) {
+        console.warn('Email environment variables not set - skipping custom email')
+      } else {
+        const emailResponse = await fetch(`${request.nextUrl.origin}/api/notify-artist`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            artistId: authData.user.id,
+            artistName: artistName,
+            email: email,
+            type: 'signup_confirmation'
+          })
+        })
+
+        if (!emailResponse.ok) {
+          const errorText = await emailResponse.text()
+          console.error('Failed to send confirmation email:', emailResponse.status, errorText)
+        } else {
+          console.log('Custom confirmation email sent successfully')
+        }
+      }
+    } catch (emailError) {
+      console.error('Email error:', emailError)
+    }
+
+    // Log admin analytics for signup attempt
+    try {
+      const analyticsResponse = await fetch(`${request.nextUrl.origin}/api/analytics/track-signup`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -178,22 +211,36 @@ export async function POST(request: NextRequest) {
           artistId: authData.user.id,
           artistName: artistName,
           email: email,
-          type: 'signup_confirmation'
+          songName: songName,
+          signupStatus: 'success',
+          emailSent: !!(process.env.EMAIL_USER && process.env.EMAIL_PASS),
+          timestamp: new Date().toISOString()
         })
       })
 
-      if (!emailResponse.ok) {
-        console.error('Failed to send confirmation email')
+      if (!analyticsResponse.ok) {
+        console.error('Failed to log signup analytics')
+      } else {
+        console.log('Signup analytics logged successfully')
       }
-    } catch (emailError) {
-      console.error('Email error:', emailError)
+    } catch (analyticsError) {
+      console.error('Analytics error:', analyticsError)
     }
+
+    // Log Supabase auth status
+    console.log('Supabase auth result:', {
+      user: authData.user?.id,
+      session: authData.session ? 'Session created' : 'No session',
+      emailConfirmed: authData.user?.email_confirmed_at ? 'Email confirmed' : 'Email not confirmed'
+    })
 
     return NextResponse.json({
       success: true,
       message: 'Artist account created successfully! Please check your email to verify your account.',
       artistId: authData.user.id,
-      songId: songData.id
+      songId: songData.id,
+      emailSent: true,
+      note: 'Check your email (including spam folder) for the confirmation link from Supabase'
     })
 
   } catch (error) {

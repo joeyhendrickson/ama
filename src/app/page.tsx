@@ -196,7 +196,7 @@ export default function Home() {
 
   const getStatusColor = (status: string) => {
     switch (status) {
-      case 'active': return 'text-green-400'
+      case 'approved': return 'text-green-400'
       case 'pending': return 'text-yellow-400'
       case 'launched': return 'text-purple-400'
       default: return 'text-gray-400'
@@ -205,7 +205,7 @@ export default function Home() {
 
   const getStatusIcon = (status: string) => {
     switch (status) {
-      case 'active': return '🎵'
+      case 'approved': return '🎵'
       case 'pending': return '⏳'
       case 'launched': return '🚀'
       default: return '📝'
@@ -458,9 +458,9 @@ export default function Home() {
                     >
                       <path d="M2.25 2.25a.75.75 0 000 1.5h1.386c.17 0 .318.114.362.278l2.558 9.592a3.752 3.752 0 00-2.806 3.63c0 .414.336.75.75.75h15.75a.75.75 0 000-1.5H5.378A2.25 2.25 0 017.5 15h11.218a.75.75 0 00.674-.421 60.358 60.358 0 002.46-5.23c.18-.487.22-1.01.12-1.521a.75.75 0 00-.728-.654h-12.21l-1.581-5.927A.75.75 0 003.636 2.25H2.25zM3.75 20.25a1.5 1.5 0 113 0 1.5 1.5 0 01-3 0zM16.5 20.25a1.5 1.5 0 113 0 1.5 1.5 0 01-3 0z" />
                     </svg>
-                    {cartItems.length > 0 && (
+                    {Array.isArray(cartItems) && cartItems.length > 0 && (
                       <span className="absolute -top-2 -right-2 bg-black text-white text-xs font-bold rounded-full h-5 w-5 flex items-center justify-center">
-                        {cartItems.reduce((acc, item) => acc + item.voteCount, 0)}
+                        {Array.isArray(cartItems) ? cartItems.reduce((acc, item) => acc + item.voteCount, 0) : 0}
                       </span>
                     )}
                   </Link>
@@ -692,6 +692,18 @@ export default function Home() {
               </div>
             </div>
           </div>
+        </div>
+      )}
+
+      {Array.isArray(cartItems) && cartItems.length > 0 && (
+        <div className="fixed bottom-4 right-4 z-50">
+          <Link
+            href="/cart"
+            className="bg-[#E55A2B] text-white px-4 py-2 rounded-full shadow-lg hover:bg-[#D14A1B] transition-colors flex items-center gap-2"
+          >
+            <span>🛒</span>
+            <span>{Array.isArray(cartItems) ? cartItems.reduce((acc, item) => acc + item.voteCount, 0) : 0} votes</span>
+          </Link>
         </div>
       )}
     </>
