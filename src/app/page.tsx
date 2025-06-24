@@ -6,6 +6,8 @@ import Link from 'next/link'
 import { supabase } from '@/lib/supabaseClient'
 import Navbar from '@/components/Navbar'
 import { useCart } from '@/context/CartContext'
+import ArtistHowItWorks from '@/components/ArtistHowItWorks'
+import Chatbot from '@/components/Chatbot'
 
 type Artist = {
   id: string
@@ -53,6 +55,8 @@ export default function Home() {
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [animatedCards, setAnimatedCards] = useState<number[]>([])
   const { cartItems } = useCart()
+  const [isChatbotOpen, setIsChatbotOpen] = useState(false)
+  const [chatbotMode, setChatbotMode] = useState<'default' | 'manager'>('default')
 
   useEffect(() => {
     const fetchData = async () => {
@@ -238,152 +242,120 @@ export default function Home() {
 
   return (
     <>
-      <section className="text-center py-20 sm:py-32 container mx-auto">
-        <h1 className="text-5xl md:text-7xl font-bold text-gray-900 leading-tight">
-          Vote to Launch
-          <br />
-          New Songs on Spotify
-        </h1>
-        <p className="text-lg md:text-xl text-gray-600 mt-6 max-w-2xl mx-auto">
-          Support your favorite artists and earn NFTs for launching their songs
-        </p>
-        <div className="mt-10 flex flex-col sm:flex-row justify-center items-center gap-4">
-          <button 
-            className="bg-[#E55A2B] text-white font-semibold py-3 px-8 rounded-lg hover:bg-[#D14A1B] transition-all duration-300 transform hover:scale-105 shadow-lg hover:shadow-xl w-full sm:w-auto"
-            onClick={triggerArtistCardAnimation}
-          >
-            Explore Songs
-          </button>
-          <Link 
-            href="/artist-signup"
-            className="bg-white text-gray-900 border border-[#E55A2B] font-semibold py-3 px-8 rounded-lg hover:bg-gray-50 transition-colors w-full sm:w-auto text-center"
-          >
-            Submit Your Song
-          </Link>
-        </div>
-      </section>
-      
-      <main className="container mx-auto px-4 md:px-0 pb-20">
-        <h2 className="text-3xl font-bold text-gray-900 mb-8 text-center sm:text-left">
-          Featured Artists
-        </h2>
-
-        {error && (
-          <p className="text-red-500 bg-red-50 p-4 rounded-lg text-center mb-6">
-            Error: {error}
+      <style jsx global>{`
+        body { ${isModalOpen ? 'overflow: hidden !important;' : ''} }
+      `}</style>
+      <div className={isModalOpen ? 'opacity-0 pointer-events-none select-none' : ''}>
+        <section className="text-center py-20 sm:py-32 container mx-auto">
+          <h1 className="text-5xl md:text-7xl font-bold text-gray-900 leading-tight">
+            Vote to Launch
+            <br />
+            New Songs on Spotify
+          </h1>
+          <p className="text-lg md:text-xl text-gray-600 mt-6 max-w-2xl mx-auto">
+            Support your favorite artists and earn NFTs by adding rocket fuel to their songs!
           </p>
-        )}
+          <div className="mt-10 flex flex-col sm:flex-row justify-center items-center gap-4">
+            <button 
+              className="bg-[#E55A2B] text-white font-semibold py-3 px-8 rounded-lg hover:bg-[#D14A1B] transition-all duration-300 transform hover:scale-105 shadow-lg hover:shadow-xl w-full sm:w-auto"
+              onClick={triggerArtistCardAnimation}
+            >
+              Explore Songs
+            </button>
+            <Link 
+              href="/artist-signup"
+              className="bg-white text-gray-900 border border-[#E55A2B] font-semibold py-3 px-8 rounded-lg hover:bg-gray-50 transition-colors w-full sm:w-auto text-center"
+            >
+              Submit Your Song
+            </Link>
+          </div>
+        </section>
+        
+        <main className="container mx-auto px-4 md:px-0 pb-20">
+          <h2 className="text-3xl font-bold text-gray-900 mb-8 text-center sm:text-left">
+            Featured Artists
+          </h2>
 
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-8">
-          {artists.map((artist, index) => {
-            const isColumbusCard = artist.name === 'Columbus Songwriters Association'
-            const imageContainerHeight = isColumbusCard ? 'h-48' : 'h-[32rem]'
-            const imageFitStyle = isColumbusCard ? 'object-contain' : 'object-cover'
+          {error && (
+            <p className="text-red-500 bg-red-50 p-4 rounded-lg text-center mb-6">
+              Error: {error}
+            </p>
+          )}
 
-            return (
-              <div 
-                key={artist.id} 
-                className={`relative bg-white rounded-2xl p-6 border border-gray-200 hover:shadow-lg transition-all duration-300 cursor-pointer group ${
-                  activeCardIndex === index ? 'ring-4 ring-black ring-opacity-75 shadow-2xl' : ''
-                }`}
-                style={{ 
-                  height: isColumbusCard ? '400px' : '650px'
-                }}
-              >
-                <div className={`relative ${imageContainerHeight}`}>
-                  <Image
-                    src={artist.image_url}
-                    alt={artist.name}
-                    fill
-                    className={`w-full h-full group-hover:scale-105 transition-transform duration-300 ${imageFitStyle}`}
-                  />
-                  <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/20 to-transparent" />
-                  <div className="absolute bottom-0 left-0 p-6 text-white w-full">
-                    <h3 className="text-3xl font-bold">{artist.name}</h3>
-                    <p className="text-sm text-gray-200">{artist.genre}</p>
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-8">
+            {artists.map((artist, index) => {
+              const isColumbusCard = artist.name === 'Columbus Songwriters Association'
+              const imageContainerHeight = isColumbusCard ? 'h-48' : 'h-[32rem]'
+              const imageFitStyle = isColumbusCard ? 'object-contain' : 'object-cover'
+
+              return (
+                <div 
+                  key={artist.id} 
+                  className={`relative bg-white rounded-2xl p-6 border border-gray-200 hover:shadow-lg transition-all duration-300 cursor-pointer group ${
+                    activeCardIndex === index ? 'ring-4 ring-black ring-opacity-75 shadow-2xl' : ''
+                  }`}
+                  style={{ 
+                    height: isColumbusCard ? '400px' : '650px'
+                  }}
+                >
+                  <div className={`relative ${imageContainerHeight}`}>
+                    <Image
+                      src={artist.image_url}
+                      alt={artist.name}
+                      fill
+                      className={`w-full h-full group-hover:scale-105 transition-transform duration-300 ${imageFitStyle}`}
+                    />
+                    <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/20 to-transparent" />
+                    <div className="absolute bottom-0 left-0 p-6 text-white w-full">
+                      <h3 className="text-3xl font-bold">{artist.name}</h3>
+                      <p className="text-sm text-gray-200">{artist.genre}</p>
+                    </div>
+                  </div>
+
+                  <div className="p-6">
+                    <div className="w-full bg-gray-200 rounded-full h-3 mb-4">
+                      <div 
+                        className="bg-black h-3 rounded-full transition-all duration-500"
+                        style={{ width: `${artist.vote_percentage}%` }}
+                      ></div>
+                    </div>
+                    <div className="flex justify-between text-sm text-gray-600 mb-4">
+                      <span>{artist.vote_percentage}%</span>
+                      <span>Vote now</span>
+                    </div>
+
+                    <Link href={`/artist/${artist.id}`} className="block w-full">
+                      <button 
+                        className="w-full bg-black hover:bg-gray-800 text-white font-bold py-3 px-6 rounded-lg transition-all duration-300 transform hover:scale-105 shadow-lg"
+                      >
+                        Vote Now
+                      </button>
+                    </Link>
                   </div>
                 </div>
-
-                <div className="p-6">
-                  <div className="w-full bg-gray-200 rounded-full h-3 mb-4">
-                    <div 
-                      className="bg-black h-3 rounded-full transition-all duration-500"
-                      style={{ width: `${artist.vote_percentage}%` }}
-                    ></div>
-                  </div>
-                  <div className="flex justify-between text-sm text-gray-600 mb-4">
-                    <span>{artist.vote_percentage}%</span>
-                    <span>Vote now</span>
-                  </div>
-
-                  <Link href={`/artist/${artist.id}`} className="block w-full">
-                    <button 
-                      className="w-full bg-black hover:bg-gray-800 text-white font-bold py-3 px-6 rounded-lg transition-all duration-300 transform hover:scale-105 shadow-lg"
-                    >
-                      Vote Now
-                    </button>
-                  </Link>
-                </div>
-              </div>
-            )
-          })}
-        </div>
-      </main>
-      
-      {/* How It Works Section */}
-      <div className="container mx-auto px-4 mt-20 mb-32" data-section="how-it-works">
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-8 max-w-6xl mx-auto">
-          {/* Step 1 */}
-          <div className="text-center group">
-            <div className="relative mb-6">
-              <div className="w-20 h-20 bg-black rounded-full flex items-center justify-center mx-auto text-3xl font-bold text-white shadow-lg group-hover:scale-110 transition-transform duration-300">
-                1
-              </div>
-            </div>
-            <h3 className="text-2xl font-bold text-gray-900 mb-4">Vote!</h3>
-            <p className="text-gray-600 leading-relaxed">
-              Support your favorite artist by voting for their unreleased song. Every vote counts toward launching their music to the world!
-            </p>
+              )
+            })}
           </div>
-
-          {/* Step 2 */}
-          <div className="text-center group">
-            <div className="relative mb-6">
-              <div className="w-20 h-20 bg-black rounded-full flex items-center justify-center mx-auto text-3xl font-bold text-white shadow-lg group-hover:scale-110 transition-transform duration-300">
-                2
-              </div>
-            </div>
-            <h3 className="text-2xl font-bold text-gray-900 mb-4">Earn NFT!</h3>
-            <p className="text-gray-600 leading-relaxed">
-              Get exclusive limited-edition NFTs with real artist perks: backstage passes, house concerts, private showcases, and more!
-            </p>
-          </div>
-
-          {/* Step 3 */}
-          <div className="text-center group">
-            <div className="relative mb-6">
-              <div className="w-20 h-20 bg-black rounded-full flex items-center justify-center mx-auto text-3xl font-bold text-white shadow-lg group-hover:scale-110 transition-transform duration-300">
-                3
-              </div>
-            </div>
-            <h3 className="text-2xl font-bold text-gray-900 mb-4">Launch That Song!</h3>
-            <p className="text-gray-600 leading-relaxed">
-              Watch as your votes help artists reach their launch goals. Track progress in real-time and see the impact of your support!
-            </p>
-          </div>
+        </main>
+        
+        {/* Cool Divider with Zig-Zag Line and Rocket */}
+        <div className="relative w-full flex items-center justify-center my-20">
+          <svg width="100%" height="60" viewBox="0 0 1200 60" fill="none" xmlns="http://www.w3.org/2000/svg" className="absolute left-0 right-0 w-full h-16">
+            <polyline points="0,30 50,10 100,50 150,10 200,50 250,10 300,50 350,10 400,50 450,10 500,50 550,10 600,50 650,10 700,50 750,10 800,50 850,10 900,50 950,10 1000,50 1050,10 1100,50 1150,10 1200,30" stroke="#E55A2B" strokeWidth="6" fill="none" />
+          </svg>
         </div>
-
-        {/* Call to Action */}
-        <div className="text-center mt-12">
-          <button 
-            className="bg-[#E55A2B] hover:bg-[#D14A1B] text-white font-semibold py-4 px-10 rounded-lg transition-colors text-lg"
-            onClick={triggerArtistCardAnimation}
-          >
-            Limited Time: Vote Now and Collect NFTs!
-          </button>
-        </div>
+        
+        <ArtistHowItWorks onAIMusicManagerClick={() => {
+          setIsChatbotOpen(true);
+          setChatbotMode('manager');
+        }} />
+        <Chatbot
+          isOpen={isChatbotOpen}
+          setIsOpen={setIsChatbotOpen}
+          mode={chatbotMode}
+          setMode={setChatbotMode}
+        />
       </div>
-      
       {/* Modal */}
       {isModalOpen && (
         <div className="fixed inset-0 bg-black flex items-center justify-center p-4 z-50">
@@ -702,7 +674,7 @@ export default function Home() {
             className="bg-[#E55A2B] text-white px-4 py-2 rounded-full shadow-lg hover:bg-[#D14A1B] transition-colors flex items-center gap-2"
           >
             <span>🛒</span>
-            <span>{Array.isArray(cartItems) ? cartItems.reduce((acc, item) => acc + item.voteCount, 0) : 0} votes</span>
+            <span>{Array.isArray(cartItems) ? cartItems.reduce((acc, item) => acc + item.voteCount, 0) : 0} rocket fuel</span>
           </Link>
         </div>
       )}
