@@ -44,8 +44,8 @@ export default function Navbar() {
       <div className="container mx-auto flex justify-between items-center px-4 md:px-0">
         <Logo />
         <nav className="hidden md:flex items-center gap-6">
-          <Link href="/#connect" className="text-gray-700 hover:text-black transition-colors">
-            Connect
+          <Link href="/report-issue" className="text-gray-700 hover:text-black transition-colors">
+            Report Issue
           </Link>
           <button 
             onClick={scrollToHowItWorks}
