@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useEffect, useState, createContext, useRef, useCallback } from 'react'
 import Image from 'next/image'
 import Link from 'next/link'
 import { supabase } from '@/lib/supabaseClient'
@@ -32,7 +32,9 @@ type Song = {
   status: string
 }
 
-export default function Home() {
+type HomeProps = { howItWorksRef?: React.RefObject<HTMLElement> }
+
+export default function Home({ howItWorksRef }: HomeProps) {
   const [artists, setArtists] = useState<Artist[]>([])
   const [recentSongs, setRecentSongs] = useState<Song[]>([])
   const [error, setError] = useState<string | null>(null)
@@ -241,7 +243,7 @@ export default function Home() {
   }
 
   return (
-    <>
+    <div>
       <style jsx global>{`
         body { ${isModalOpen ? 'overflow: hidden !important;' : ''} }
       `}</style>
@@ -400,20 +402,6 @@ export default function Home() {
                   <Link href="/#connect" className="text-gray-700 hover:text-black transition-colors" onClick={() => setIsModalOpen(false)}>
                     Connect
                   </Link>
-                  <button 
-                    onClick={() => {
-                      setIsModalOpen(false)
-                      setTimeout(() => {
-                        const element = document.querySelector('[data-section="how-it-works"]')
-                        if (element) {
-                          element.scrollIntoView({ behavior: 'smooth' })
-                        }
-                      }, 100)
-                    }}
-                    className="hover:text-black transition-colors bg-transparent border-none text-gray-700 cursor-pointer"
-                  >
-                    How It Works
-                  </button>
                   <Link
                     href="/login"
                     className="bg-[#E55A2B] text-white font-semibold py-2 px-4 rounded-full hover:bg-[#D14A1B] transition-colors"
@@ -440,230 +428,6 @@ export default function Home() {
               </div>
             </div>
           </div>
-
-          {/* iPhone Frame */}
-          <div className="relative mt-20">
-            {/* iPhone Body */}
-            <div className="w-[500px] h-[1000px] bg-black rounded-[3rem] p-4 shadow-2xl">
-              {/* iPhone Screen */}
-              <div className="w-full h-full bg-white rounded-[2.5rem] overflow-hidden relative">
-                {/* iPhone Notch */}
-                <div className="absolute top-0 left-1/2 transform -translate-x-1/2 w-40 h-8 bg-black rounded-b-3xl z-10"></div>
-                
-                {/* iPhone Status Bar */}
-                <div className="absolute top-3 left-0 right-0 flex justify-between items-center px-10 text-black text-base font-semibold z-20">
-                  <span>9:41</span>
-                  <div className="flex items-center space-x-1">
-                    <div className="w-7 h-4 border-2 border-black rounded-sm">
-                      <div className="w-5 h-1.5 bg-black rounded-sm m-0.5"></div>
-                    </div>
-                    <span>100%</span>
-                  </div>
-                </div>
-
-                {/* App Content */}
-                <div className="pt-12 h-full overflow-y-auto">
-                  {/* App Header */}
-                  <div className="bg-white border-b border-gray-200 px-6 py-4">
-                    <div className="flex justify-between items-center">
-                      <h2 className="text-xl font-semibold text-black">Submit Your Song</h2>
-                      <button
-                        onClick={() => setIsModalOpen(false)}
-                        className="w-8 h-8 bg-gray-200 rounded-full flex items-center justify-center text-black hover:bg-gray-300 transition-colors"
-                      >
-                        ×
-                      </button>
-                    </div>
-                  </div>
-                  
-                  {/* Form Content */}
-                  <div className="p-6">
-                    <form onSubmit={handleSubmit} className="space-y-6">
-                      <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-2">
-                          Artist Name *
-                        </label>
-                        <input
-                          type="text"
-                          name="artistName"
-                          value={formData.artistName}
-                          onChange={handleInputChange}
-                          required
-                          className="w-full px-4 py-3 bg-gray-50 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-black focus:border-black text-black placeholder-gray-500 text-base"
-                          placeholder="Enter artist name"
-                        />
-                      </div>
-
-                      <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-2">
-                          Email *
-                        </label>
-                        <input
-                          type="email"
-                          name="email"
-                          value={formData.email}
-                          onChange={handleInputChange}
-                          required
-                          className="w-full px-4 py-3 bg-gray-50 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-black focus:border-black text-black placeholder-gray-500 text-base"
-                          placeholder="Enter your email"
-                        />
-                      </div>
-
-                      <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-2">
-                          Password *
-                        </label>
-                        <input
-                          type="password"
-                          name="password"
-                          value={formData.password}
-                          onChange={handleInputChange}
-                          required
-                          className="w-full px-4 py-3 bg-gray-50 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-black focus:border-black text-black placeholder-gray-500 text-base"
-                          placeholder="Enter your password"
-                        />
-                      </div>
-
-                      <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-2">
-                          Confirm Password *
-                        </label>
-                        <input
-                          type="password"
-                          name="confirmPassword"
-                          value={formData.confirmPassword}
-                          onChange={handleInputChange}
-                          required
-                          className="w-full px-4 py-3 bg-gray-50 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-black focus:border-black text-black placeholder-gray-500 text-base"
-                          placeholder="Confirm your password"
-                        />
-                      </div>
-
-                      <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-2">
-                          Song Name *
-                        </label>
-                        <input
-                          type="text"
-                          name="songName"
-                          value={formData.songName}
-                          onChange={handleInputChange}
-                          required
-                          className="w-full px-4 py-3 bg-gray-50 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-black focus:border-black text-black placeholder-gray-500 text-base"
-                          placeholder="Enter song name"
-                        />
-                      </div>
-
-                      <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-2">
-                          Song Upload (.mp3) *
-                        </label>
-                        <div className="relative">
-                          <input
-                            type="file"
-                            name="songFile"
-                            accept=".mp3"
-                            onChange={handleFileChange}
-                            required
-                            className="w-full px-4 py-3 bg-gray-50 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-black focus:border-black text-gray-700 file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-sm file:font-semibold file:bg-black file:text-white hover:file:bg-gray-800 text-base"
-                          />
-                        </div>
-                      </div>
-
-                      <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-2">
-                          Bio *
-                        </label>
-                        <textarea
-                          name="bio"
-                          value={formData.bio}
-                          onChange={handleInputChange}
-                          required
-                          rows={3}
-                          className="w-full px-4 py-3 bg-gray-50 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-black focus:border-black text-black placeholder-gray-500 text-base resize-none"
-                          placeholder="Tell us about yourself and your music"
-                        />
-                      </div>
-
-                      <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-2">
-                          SoundCloud Link
-                        </label>
-                        <input
-                          type="url"
-                          name="soundcloudLink"
-                          value={formData.soundcloudLink}
-                          onChange={handleInputChange}
-                          className="w-full px-4 py-3 bg-gray-50 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-black focus:border-black text-black placeholder-gray-500 text-base"
-                          placeholder="https://soundcloud.com/your-profile"
-                        />
-                      </div>
-
-                      <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-2">
-                          Website
-                        </label>
-                        <input
-                          type="url"
-                          name="website"
-                          value={formData.website}
-                          onChange={handleInputChange}
-                          className="w-full px-4 py-3 bg-gray-50 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-black focus:border-black text-black placeholder-gray-500 text-base"
-                          placeholder="https://your-website.com"
-                        />
-                      </div>
-
-                      <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-2">
-                          Message
-                        </label>
-                        <textarea
-                          name="message"
-                          value={formData.message}
-                          onChange={handleInputChange}
-                          rows={3}
-                          className="w-full px-4 py-3 bg-gray-50 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-black focus:border-black text-black placeholder-gray-500 text-base resize-none"
-                          placeholder="Any additional message you'd like to share"
-                        />
-                      </div>
-
-                      <div className="flex items-start space-x-3 py-2">
-                        <input
-                          type="checkbox"
-                          name="agreeToTerms"
-                          checked={formData.agreeToTerms}
-                          onChange={handleInputChange}
-                          required
-                          className="h-5 w-5 text-black focus:ring-black border-gray-300 rounded bg-gray-50 mt-0.5"
-                        />
-                        <label className="block text-sm text-gray-700 leading-relaxed">
-                          I agree to the terms and conditions *
-                        </label>
-                      </div>
-
-                      {/* iPhone-style Button Container */}
-                      <div className="pt-6 space-y-3">
-                        <button
-                          type="submit"
-                          disabled={isSubmitting}
-                          className="w-full py-4 bg-black text-white rounded-xl hover:bg-gray-800 transition-colors disabled:opacity-50 font-semibold text-base"
-                        >
-                          {isSubmitting ? 'Creating Account...' : 'Create Artist Account'}
-                        </button>
-                        <button
-                          type="button"
-                          onClick={() => setIsModalOpen(false)}
-                          className="w-full py-3 text-gray-700 bg-gray-100 border border-gray-300 rounded-xl hover:bg-gray-200 transition-colors text-base"
-                        >
-                          Cancel
-                        </button>
-                      </div>
-                    </form>
-                  </div>
-                </div>
-              </div>
-            </div>
-          </div>
         </div>
       )}
 
@@ -678,6 +442,6 @@ export default function Home() {
           </Link>
         </div>
       )}
-    </>
+    </div>
   )
 }

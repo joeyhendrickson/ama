@@ -3,7 +3,6 @@
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import { useCart } from '@/context/CartContext'
-import { useEffect } from 'react'
 
 const Logo = () => (
   <Link href="/" className="flex items-center gap-2">
@@ -27,29 +26,6 @@ export default function Navbar() {
   const { cartItems } = useCart()
   const totalItems = Array.isArray(cartItems) ? cartItems.reduce((acc, item) => acc + item.voteCount, 0) : 0
 
-  const scrollToHowItWorks = (e: React.MouseEvent) => {
-    e.preventDefault();
-    if (typeof window !== 'undefined') {
-      if (window.location.pathname === '/') {
-        const element = document.querySelector('[data-section="how-it-works"]');
-        if (element) {
-          element.scrollIntoView({ behavior: 'smooth' });
-        }
-      } else {
-        window.location.href = '/#how-it-works';
-      }
-    }
-  }
-
-  useEffect(() => {
-    if (typeof window !== 'undefined' && window.location.hash === '#how-it-works') {
-      setTimeout(() => {
-        const el = document.querySelector('[data-section="how-it-works"]');
-        if (el) el.scrollIntoView({ behavior: 'smooth' });
-      }, 100);
-    }
-  }, []);
-
   return (
     <header className="sticky top-0 z-50 py-4 bg-white/95 backdrop-blur-md border-b border-gray-200">
       <div className="container mx-auto flex justify-between items-center px-4 md:px-0">
@@ -60,7 +36,6 @@ export default function Navbar() {
           </Link>
           <a
             href="#how-it-works"
-            onClick={scrollToHowItWorks}
             className="hover:text-black transition-colors bg-transparent border-none text-gray-700 cursor-pointer"
           >
             How It Works

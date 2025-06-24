@@ -12,9 +12,11 @@ type Message = {
 type ChatbotProps = {
   isOpen?: boolean
   setIsOpen?: (open: boolean) => void
+  mode?: 'default' | 'manager'
+  setMode?: (mode: 'default' | 'manager') => void
 }
 
-const Chatbot = ({ isOpen: externalIsOpen, setIsOpen: externalSetIsOpen }: ChatbotProps) => {
+const Chatbot = ({ isOpen: externalIsOpen, setIsOpen: externalSetIsOpen, mode, setMode }: ChatbotProps) => {
   const [internalIsOpen, setInternalIsOpen] = useState(false)
   const isOpen = externalIsOpen !== undefined ? externalIsOpen : internalIsOpen
   const setIsOpen = externalSetIsOpen || setInternalIsOpen

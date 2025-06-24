@@ -1,4 +1,6 @@
-import React from 'react'
+'use client'
+
+import React, { forwardRef } from 'react'
 
 const features = [
   {
@@ -51,7 +53,7 @@ type ArtistHowItWorksProps = {
   onAIMusicManagerClick?: () => void
 }
 
-const ArtistHowItWorks: React.FC<ArtistHowItWorksProps> = ({ onAIMusicManagerClick }) => (
+const ArtistHowItWorks = ({ onAIMusicManagerClick }: ArtistHowItWorksProps) => (
   <section id="how-it-works" className="max-w-4xl mx-auto mt-16 mb-12 px-4" data-section="how-it-works">
     <div className="max-w-5xl mx-auto mb-12 text-center">
       <h2 className="text-4xl font-extrabold mb-4 text-gray-900">For Artists: How It Works</h2>
