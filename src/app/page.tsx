@@ -67,10 +67,13 @@ export default function Home() {
         .select('*')
         .order('name')
 
+      console.log('Fetched artists data:', artistsData)
+      console.log('Artists error:', artistsError)
+
       if (artistsError) {
         console.error('Error fetching artists:', artistsError.message)
         setError(artistsError.message)
-      } else {
+      } else if (artistsData && artistsData.length > 0) {
         const artistsWithDummyData = artistsData.map((artist: Artist) => {
           let genre = 'Pop • Rock' // default
           
@@ -90,6 +93,9 @@ export default function Home() {
           }
         })
         setArtists(artistsWithDummyData)
+      } else {
+        console.log('No artists found in database')
+        setArtists([])
       }
 
       // Fetch recent songs
