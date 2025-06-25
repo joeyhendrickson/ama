@@ -12,11 +12,59 @@ const createMockClient = () => ({
     signUp: () => Promise.resolve({ data: { user: null }, error: { message: 'Mock client' } }),
     signOut: () => Promise.resolve({ error: null }),
   },
-  from: () => ({
-    select: () => Promise.resolve({ data: [], error: null }),
+  from: (table: string) => ({
+    select: () => {
+      if (table === 'artists') {
+        // Return fallback artists data
+        return Promise.resolve({
+          data: [
+            {
+              id: 'fallback-1',
+              name: 'Douggert',
+              bio: 'Punk Electronica artist pushing boundaries',
+              image_url: 'https://images.unsplash.com/photo-1493225457124-a3eb161ffa5f?w=800&h=600&fit=crop',
+              spotify_url: '',
+              soundcloud_url: '',
+              website_url: '',
+              status: 'approved'
+            },
+            {
+              id: 'fallback-2',
+              name: 'Joey Hendrickson',
+              bio: 'Alternative acoustic songwriter',
+              image_url: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=800&h=600&fit=crop',
+              spotify_url: '',
+              soundcloud_url: '',
+              website_url: '',
+              status: 'approved'
+            },
+            {
+              id: 'fallback-3',
+              name: 'Columbus Songwriters Association',
+              bio: 'Local songwriting collective',
+              image_url: 'https://images.unsplash.com/photo-1516280440614-37939bbacd81?w=800&h=600&fit=crop',
+              spotify_url: '',
+              soundcloud_url: '',
+              website_url: '',
+              status: 'approved'
+            }
+          ],
+          error: null
+        })
+      }
+      return Promise.resolve({ data: [], error: null })
+    },
     insert: () => Promise.resolve({ data: null, error: { message: 'Mock client' } }),
     update: () => Promise.resolve({ data: null, error: { message: 'Mock client' } }),
     delete: () => Promise.resolve({ data: null, error: { message: 'Mock client' } }),
+    order: () => ({
+      limit: () => Promise.resolve({ data: [], error: null })
+    }),
+    eq: () => ({
+      order: () => ({
+        limit: () => Promise.resolve({ data: [], error: null })
+      })
+    })
   }),
   storage: {
     from: () => ({

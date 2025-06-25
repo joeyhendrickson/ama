@@ -356,12 +356,6 @@ export default function Home() {
             Featured Artists
           </h2>
 
-          {/* Debug info */}
-          <div className="mb-4 p-4 bg-gray-100 rounded">
-            <p>Artists array length: {artists.length}</p>
-            <p>Error state: {error || 'None'}</p>
-          </div>
-
           {error && (
             <p className="text-red-500 bg-red-50 p-4 rounded-lg text-center mb-6">
               Error: {error}
