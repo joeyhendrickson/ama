@@ -80,7 +80,7 @@ const Chatbot = ({
           <div className="bg-[#E55A2B] text-white p-4 rounded-t-lg flex justify-between items-center">
             <div>
               <h3 className="font-semibold text-sm md:text-base">{mode === 'manager' ? 'AI Music Manager' : 'Music Manager'}</h3>
-              <p className="text-xs md:text-sm opacity-90">Let's get you paid!</p>
+              <p className="text-xs md:text-sm opacity-90">Get setup and build your strategy!</p>
             </div>
             <button
               onClick={() => setIsOpen(false)}
