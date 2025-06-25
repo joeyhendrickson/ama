@@ -362,14 +362,14 @@ export default function Home() {
           {/* Back Arrow - Fixed Position */}
           <Link 
             href="/" 
-            className="fixed left-4 top-1/2 transform -translate-y-1/2 z-50 inline-flex items-center justify-center w-12 h-12 bg-white backdrop-blur-md border border-gray-300 rounded-full text-gray-700 hover:text-gray-900 hover:bg-gray-100 transition-all duration-300 group shadow-lg"
+            className="fixed left-4 top-1/2 transform -translate-y-1/2 z-50 inline-flex items-center justify-center w-8 h-8 md:w-12 md:h-12 bg-white backdrop-blur-md border border-gray-300 rounded-full text-gray-700 hover:text-gray-900 hover:bg-gray-100 transition-all duration-300 group shadow-lg"
             onClick={() => setIsModalOpen(false)}
           >
             <svg
               xmlns="http://www.w3.org/2000/svg"
               viewBox="0 0 20 20"
               fill="currentColor"
-              className="w-6 h-6 group-hover:-translate-x-1 transition-transform"
+              className="w-4 h-4 md:w-6 md:h-6 group-hover:-translate-x-1 transition-transform"
             >
               <path
                 fillRule="evenodd"
