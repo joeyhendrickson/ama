@@ -663,7 +663,7 @@ export default function ArtistPage() {
 
         {/* Songs Section */}
         <div className="mb-12">
-          <h2 className="text-4xl font-bold text-gray-900 mb-8 text-center">Vote for Songs</h2>
+          <h2 className="text-4xl font-bold text-gray-900 mb-8 text-center">Contribute to Songs</h2>
 
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
             {songs.map((song) => {
