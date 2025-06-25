@@ -45,7 +45,7 @@ const features = [
         <rect x="11" y="16" width="2" height="2" rx="1" fill="#fff" />
       </svg>
     ),
-    description: 'Submit your song or chat with the AI Music Manager on the bottom left (<-- over there!) You can ask it anything about LaunchThatSong.com or even create social posts to invite your friends to contribute.'
+    description: 'Chat with the AI Music Manager on the bottom left (<-- over there!) You can ask it anything about LaunchThatSong.com or even the marketing plan you can develop to invite support and feedback.'
   }
 ]
 
