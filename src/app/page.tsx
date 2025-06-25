@@ -356,6 +356,12 @@ export default function Home() {
             Featured Artists
           </h2>
 
+          {/* Debug info */}
+          <div className="mb-4 p-4 bg-gray-100 rounded">
+            <p>Artists array length: {artists.length}</p>
+            <p>Error state: {error || 'None'}</p>
+          </div>
+
           {error && (
             <p className="text-red-500 bg-red-50 p-4 rounded-lg text-center mb-6">
               Error: {error}
@@ -363,58 +369,64 @@ export default function Home() {
           )}
 
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-8">
-            {artists.map((artist, index) => {
-              const isColumbusCard = artist.name === 'Columbus Songwriters Association'
-              const imageContainerHeight = isColumbusCard ? 'h-48' : 'h-[32rem]'
-              const imageFitStyle = isColumbusCard ? 'object-contain' : 'object-cover'
+            {artists.length > 0 ? (
+              artists.map((artist, index) => {
+                const isColumbusCard = artist.name === 'Columbus Songwriters Association'
+                const imageContainerHeight = isColumbusCard ? 'h-48' : 'h-[32rem]'
+                const imageFitStyle = isColumbusCard ? 'object-contain' : 'object-cover'
 
-              return (
-                <div 
-                  key={artist.id} 
-                  className={`relative bg-white rounded-2xl p-6 border border-gray-200 hover:shadow-lg transition-all duration-300 cursor-pointer group ${
-                    activeCardIndex === index ? 'ring-4 ring-black ring-opacity-75 shadow-2xl' : ''
-                  }`}
-                  style={{ 
-                    height: isColumbusCard ? '400px' : '650px'
-                  }}
-                >
-                  <div className={`relative ${imageContainerHeight}`}>
-                    <Image
-                      src={artist.image_url}
-                      alt={artist.name}
-                      fill
-                      className={`w-full h-full group-hover:scale-105 transition-transform duration-300 ${imageFitStyle}`}
-                    />
-                    <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/20 to-transparent" />
-                    <div className="absolute bottom-0 left-0 p-6 text-white w-full">
-                      <h3 className="text-3xl font-bold">{artist.name}</h3>
-                      <p className="text-sm text-gray-200">{artist.genre}</p>
+                return (
+                  <div 
+                    key={artist.id} 
+                    className={`relative bg-white rounded-2xl p-6 border border-gray-200 hover:shadow-lg transition-all duration-300 cursor-pointer group ${
+                      activeCardIndex === index ? 'ring-4 ring-black ring-opacity-75 shadow-2xl' : ''
+                    }`}
+                    style={{ 
+                      height: isColumbusCard ? '400px' : '650px'
+                    }}
+                  >
+                    <div className={`relative ${imageContainerHeight}`}>
+                      <Image
+                        src={artist.image_url}
+                        alt={artist.name}
+                        fill
+                        className={`w-full h-full group-hover:scale-105 transition-transform duration-300 ${imageFitStyle}`}
+                      />
+                      <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/20 to-transparent" />
+                      <div className="absolute bottom-0 left-0 p-6 text-white w-full">
+                        <h3 className="text-3xl font-bold">{artist.name}</h3>
+                        <p className="text-sm text-gray-200">{artist.genre}</p>
+                      </div>
+                    </div>
+
+                    <div className="p-6">
+                      <div className="w-full bg-gray-200 rounded-full h-3 mb-4">
+                        <div 
+                          className="bg-black h-3 rounded-full transition-all duration-500"
+                          style={{ width: `${artist.vote_percentage}%` }}
+                        ></div>
+                      </div>
+                      <div className="flex justify-between text-sm text-gray-600 mb-4">
+                        <span>{artist.vote_percentage}%</span>
+                        <span>Support now</span>
+                      </div>
+
+                      <Link href={`/artist/${artist.id}`} className="block w-full">
+                        <button 
+                          className="w-full bg-black hover:bg-gray-800 text-white font-bold py-3 px-6 rounded-lg transition-all duration-300 transform hover:scale-105 shadow-lg"
+                        >
+                          {artist.name === 'Joey Hendrickson' ? 'iPhone Recordings' : artist.name === 'Test 3' ? 'Provide Feedback' : index === 0 ? 'Collaborate' : index === 1 ? 'Support' : index === 2 ? 'Contribute' : 'Listen'}
+                        </button>
+                      </Link>
                     </div>
                   </div>
-
-                  <div className="p-6">
-                    <div className="w-full bg-gray-200 rounded-full h-3 mb-4">
-                      <div 
-                        className="bg-black h-3 rounded-full transition-all duration-500"
-                        style={{ width: `${artist.vote_percentage}%` }}
-                      ></div>
-                    </div>
-                    <div className="flex justify-between text-sm text-gray-600 mb-4">
-                      <span>{artist.vote_percentage}%</span>
-                      <span>Support now</span>
-                    </div>
-
-                    <Link href={`/artist/${artist.id}`} className="block w-full">
-                      <button 
-                        className="w-full bg-black hover:bg-gray-800 text-white font-bold py-3 px-6 rounded-lg transition-all duration-300 transform hover:scale-105 shadow-lg"
-                      >
-                        {artist.name === 'Joey Hendrickson' ? 'iPhone Recordings' : artist.name === 'Test 3' ? 'Provide Feedback' : index === 0 ? 'Collaborate' : index === 1 ? 'Support' : index === 2 ? 'Contribute' : 'Listen'}
-                      </button>
-                    </Link>
-                  </div>
-                </div>
-              )
-            })}
+                )
+              })
+            ) : (
+              <div className="col-span-full text-center py-12">
+                <p className="text-gray-500 text-lg">Loading artists...</p>
+              </div>
+            )}
           </div>
         </main>
         
