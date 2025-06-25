@@ -248,12 +248,12 @@ export default function Home() {
       <div className={isModalOpen ? 'opacity-0 pointer-events-none select-none' : ''}>
         <section className="text-center py-20 sm:py-32 container mx-auto">
           <h1 className="text-5xl md:text-7xl font-bold text-gray-900 leading-tight">
-            Help Launch
+            Contribute to The Launch
             <br />
-            New Songs
+            of Unreleased Music
           </h1>
           <p className="text-lg md:text-xl text-gray-600 mt-6 max-w-2xl mx-auto">
-            Support independent artists with feedback on songs that were just written
+            Support independent artists with feedback and contributions on songs that were just written
           </p>
           <div className="mt-10 flex flex-col sm:flex-row justify-center items-center gap-4">
             <button 
