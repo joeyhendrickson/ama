@@ -253,7 +253,7 @@ export default function Home() {
             New Songs
           </h1>
           <p className="text-lg md:text-xl text-gray-600 mt-6 max-w-2xl mx-auto">
-            Support your favorite artists with feedback on songs that were just written
+            Provide feedback and support to artists on songs that were just written
           </p>
           <div className="mt-10 flex flex-col sm:flex-row justify-center items-center gap-4">
             <button 
