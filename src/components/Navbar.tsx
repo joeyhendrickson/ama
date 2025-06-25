@@ -118,14 +118,14 @@ export default function Navbar() {
               <nav className="space-y-4">
                 <Link 
                   href="/report-issue" 
-                  className="block text-gray-700 hover:text-black transition-colors py-2"
+                  className="block bg-black text-white font-semibold py-2 px-4 rounded-full hover:bg-gray-800 transition-colors text-center"
                   onClick={() => setIsMobileMenuOpen(false)}
                 >
                   Report Issue
                 </Link>
                 <a
                   href="#how-it-works"
-                  className="block text-gray-700 hover:text-black transition-colors py-2 cursor-pointer"
+                  className="block bg-black text-white font-semibold py-2 px-4 rounded-full hover:bg-gray-800 transition-colors text-center cursor-pointer"
                   onClick={scrollToHowItWorksHandler}
                 >
                   How It Works
@@ -139,21 +139,21 @@ export default function Navbar() {
                 </Link>
                 <Link 
                   href="/cart" 
-                  className="relative block text-gray-700 hover:text-black transition-colors py-2"
+                  className="relative block bg-black text-white font-semibold py-2 px-4 rounded-full hover:bg-gray-800 transition-colors text-center"
                   onClick={() => setIsMobileMenuOpen(false)}
                 >
-                  <div className="flex items-center gap-2">
+                  <div className="flex items-center justify-center gap-2">
                     <svg
                       xmlns="http://www.w3.org/2000/svg"
                       viewBox="0 0 24 24"
                       fill="currentColor"
-                      className="w-6 h-6"
+                      className="w-5 h-5"
                     >
                       <path d="M2.25 2.25a.75.75 0 000 1.5h1.386c.17 0 .318.114.362.278l2.558 9.592a3.752 3.752 0 00-2.806 3.63c0 .414.336.75.75.75h15.75a.75.75 0 000-1.5H5.378A2.25 2.25 0 017.5 15h11.218a.75.75 0 00.674-.421 60.358 60.358 0 002.46-5.23c.18-.487.22-1.01.12-1.521a.75.75 0 00-.728-.654h-12.21l-1.581-5.927A.75.75 0 003.636 2.25H2.25zM3.75 20.25a1.5 1.5 0 113 0 1.5 1.5 0 01-3 0zM16.5 20.25a1.5 1.5 0 113 0 1.5 1.5 0 01-3 0z" />
                     </svg>
                     <span>Cart</span>
                     {totalItems > 0 && (
-                      <span className="bg-black text-white text-xs font-bold rounded-full h-5 w-5 flex items-center justify-center">
+                      <span className="bg-white text-black text-xs font-bold rounded-full h-5 w-5 flex items-center justify-center">
                         {totalItems}
                       </span>
                     )}
