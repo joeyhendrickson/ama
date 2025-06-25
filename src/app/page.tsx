@@ -329,7 +329,7 @@ export default function Home() {
                       <button 
                         className="w-full bg-black hover:bg-gray-800 text-white font-bold py-3 px-6 rounded-lg transition-all duration-300 transform hover:scale-105 shadow-lg"
                       >
-                        {index === 0 ? 'Collaborate' : index === 1 ? 'Support' : index === 2 ? 'Contribute' : 'Listen'}
+                        {artist.name === 'Joey Hendrickson' ? 'iPhone Recordings' : index === 0 ? 'Collaborate' : index === 1 ? 'Support' : index === 2 ? 'Contribute' : 'Listen'}
                       </button>
                     </Link>
                   </div>
