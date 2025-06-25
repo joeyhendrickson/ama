@@ -6,8 +6,16 @@ export async function POST(req: NextRequest) {
   // Use the provided Assistant ID
   const assistantId = process.env.OPENAI_ASSISTANT_ID || 'asst_m1BZ2M66g9Lanh7iYMtJZcOX'
 
+  // If no API key, return a demo response
   if (!apiKey) {
-    return NextResponse.json({ error: 'Missing OpenAI API key' }, { status: 500 })
+    const lastMessage = messages[messages.length - 1]?.content || ''
+    const demoResponse = `🎵 **Demo Mode** - This is a demo response since OpenAI API key is not configured.
+    
+Your message: "${lastMessage}"
+
+In the live version, this would connect to the AI Music Manager to help you discover and support artists! 🚀`
+    
+    return NextResponse.json({ reply: demoResponse })
   }
 
   try {
