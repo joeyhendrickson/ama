@@ -436,7 +436,7 @@ export default function Home() {
             className="bg-[#E55A2B] text-white px-4 py-2 rounded-full shadow-lg hover:bg-[#D14A1B] transition-colors flex items-center gap-2"
           >
             <span>🛒</span>
-            <span>{Array.isArray(cartItems) ? cartItems.reduce((acc, item) => acc + item.voteCount, 0) : 0} rocket fuel song</span>
+            <span>{Array.isArray(cartItems) ? cartItems.reduce((acc, item) => acc + item.voteCount, 0) : 0} contribution</span>
           </Link>
         </div>
       )}
