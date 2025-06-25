@@ -1,6 +1,7 @@
 // app/api/stripe/checkout/route.ts
 import { NextResponse } from 'next/server'
 import Stripe from 'stripe'
+import { supabase } from '@/lib/supabaseClient'
 
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!, {
   apiVersion: '2025-05-28.basil',
@@ -17,6 +18,27 @@ export async function POST(req: Request) {
       )
     }
 
+    // Get artist information for each song to include in metadata
+    const songIds = items.map((item: any) => item.songId)
+    const { data: songs, error: songsError } = await supabase
+      .from('songs')
+      .select('id, artist_id, title')
+      .in('id', songIds)
+
+    if (songsError) {
+      console.error('Error fetching songs:', songsError)
+      return NextResponse.json(
+        { error: 'Error fetching song information' },
+        { status: 500 }
+      )
+    }
+
+    // Create a map of songId to artistId
+    const songToArtistMap: { [key: string]: string } = {}
+    songs?.forEach(song => {
+      songToArtistMap[song.id] = song.artist_id
+    })
+
     const line_items = items.map((item: any) => ({
       price_data: {
         currency: 'usd',
@@ -28,10 +50,19 @@ export async function POST(req: Request) {
       quantity: item.quantity,
     }))
 
-    // Prepare metadata for votes and voice comments
+    // Prepare metadata for votes, voice comments, and artist information
     const votes: { [key: string]: number } = {}
+    const artistVotes: { [key: string]: { [key: string]: number } } = {} // artistId -> { songId: quantity }
+    
     items.forEach((item: any) => {
       votes[item.songId] = item.quantity
+      const artistId = songToArtistMap[item.songId]
+      if (artistId) {
+        if (!artistVotes[artistId]) {
+          artistVotes[artistId] = {}
+        }
+        artistVotes[artistId][item.songId] = item.quantity
+      }
     })
 
     const session = await stripe.checkout.sessions.create({
@@ -42,7 +73,9 @@ export async function POST(req: Request) {
       cancel_url: `${process.env.NEXT_PUBLIC_BASE_URL}/cart`,
       metadata: {
         votes: JSON.stringify(votes),
-        voiceCommentIds: JSON.stringify(voiceCommentIds || [])
+        voiceCommentIds: JSON.stringify(voiceCommentIds || []),
+        artistVotes: JSON.stringify(artistVotes),
+        totalAmount: (items.reduce((sum: number, item: any) => sum + (item.vote_price * item.quantity), 0)).toString()
       }
     })
 

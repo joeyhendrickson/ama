@@ -9,6 +9,9 @@ const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!, {
   apiVersion: '2025-05-28.basil',
 })
 
+// Platform fee percentage (e.g., 10%)
+const PLATFORM_FEE_PERCENTAGE = 0.10
+
 export async function POST(req: Request) {
   const rawBody = await req.text()
   const headersList = await headers()
@@ -32,6 +35,105 @@ export async function POST(req: Request) {
       const session = event.data.object as Stripe.Checkout.Session
       const votes = JSON.parse(session.metadata?.votes || '{}')
       const voiceCommentIds = JSON.parse(session.metadata?.voiceCommentIds || '[]')
+      const artistVotes = JSON.parse(session.metadata?.artistVotes || '{}')
+      const totalAmount = parseFloat(session.metadata?.totalAmount || '0')
+
+      console.log('Processing checkout session:', session.id)
+      console.log('Artist votes:', artistVotes)
+
+      // Process immediate payouts to artists
+      for (const [artistId, songVotes] of Object.entries(artistVotes as { [key: string]: { [key: string]: number } })) {
+        try {
+          // Get artist information
+          const { data: artist, error: artistError } = await supabase
+            .from('artists')
+            .select('id, name, stripe_account_id')
+            .eq('id', artistId)
+            .single()
+
+          if (artistError || !artist) {
+            console.error(`Artist not found: ${artistId}`, artistError)
+            continue
+          }
+
+          // Calculate artist's portion of this purchase
+          let artistAmount = 0
+          for (const [songId, quantity] of Object.entries(songVotes)) {
+            const songVotePrice = votes[songId] ? totalAmount / Object.values(votes).reduce((sum: number, val: any) => sum + val, 0) : 0
+            artistAmount += songVotePrice * (quantity as number)
+          }
+
+          // Calculate platform fee and artist payout
+          const platformFee = artistAmount * PLATFORM_FEE_PERCENTAGE
+          const artistPayout = artistAmount - platformFee
+
+          console.log(`Artist ${artist.name}: Amount=${artistAmount}, Platform Fee=${platformFee}, Payout=${artistPayout}`)
+
+          // If artist has connected Stripe account, transfer funds immediately
+          if (artist.stripe_account_id) {
+            try {
+              // Create transfer to artist's connected account
+              const transfer = await stripe.transfers.create({
+                amount: Math.round(artistPayout * 100), // Convert to cents
+                currency: 'usd',
+                destination: artist.stripe_account_id,
+                description: `Payout for rocket fuel purchases - Session ${session.id}`,
+                metadata: {
+                  session_id: session.id,
+                  artist_id: artistId,
+                  platform_fee: platformFee.toString(),
+                  artist_amount: artistAmount.toString()
+                }
+              })
+
+              console.log(`✅ Transfer created for artist ${artist.name}: ${transfer.id}`)
+
+              // Record successful transaction
+              await recordTransaction({
+                artistId,
+                sessionId: session.id,
+                stripeTransferId: transfer.id,
+                amount: artistAmount,
+                platformFee,
+                artistPayout,
+                status: 'completed',
+                customerEmail: session.customer_details?.email || null
+              })
+
+            } catch (transferError: any) {
+              console.error(`❌ Transfer failed for artist ${artist.name}:`, transferError.message)
+              
+              // Record failed transaction
+              await recordTransaction({
+                artistId,
+                sessionId: session.id,
+                amount: artistAmount,
+                platformFee,
+                artistPayout,
+                status: 'failed',
+                customerEmail: session.customer_details?.email || null,
+                errorMessage: transferError.message
+              })
+            }
+          } else {
+            console.log(`⚠️ Artist ${artist.name} doesn't have connected Stripe account`)
+            
+            // Record pending transaction (artist needs to connect Stripe)
+            await recordTransaction({
+              artistId,
+              sessionId: session.id,
+              amount: artistAmount,
+              platformFee,
+              artistPayout,
+              status: 'pending_stripe_connection',
+              customerEmail: session.customer_details?.email || null
+            })
+          }
+
+        } catch (artistError) {
+          console.error(`Error processing payout for artist ${artistId}:`, artistError)
+        }
+      }
 
       // Update vote counts for songs
       for (const [songId, voteCount] of Object.entries(votes)) {
@@ -107,4 +209,67 @@ export async function POST(req: Request) {
   }
 
   return NextResponse.json({ received: true })
+}
+
+// Helper function to record transactions in the database
+async function recordTransaction({
+  artistId,
+  sessionId,
+  stripeTransferId,
+  amount,
+  platformFee,
+  artistPayout,
+  status,
+  customerEmail,
+  errorMessage
+}: {
+  artistId: string
+  sessionId: string
+  stripeTransferId?: string
+  amount: number
+  platformFee: number
+  artistPayout: number
+  status: string
+  customerEmail: string | null
+  errorMessage?: string
+}) {
+  try {
+    // Insert into purchase_transactions table
+    const { error: transactionError } = await supabase
+      .from('purchase_transactions')
+      .insert({
+        artist_id: artistId,
+        stripe_payment_intent_id: sessionId,
+        amount: amount,
+        platform_fee: platformFee,
+        artist_payout: artistPayout,
+        status: status,
+        customer_email: customerEmail,
+        payout_date: status === 'completed' ? new Date().toISOString() : null
+      })
+
+    if (transactionError) {
+      console.error('Error recording transaction:', transactionError)
+    }
+
+    // Update artist revenue totals
+    const { error: revenueError } = await supabase
+      .from('artist_revenue')
+      .upsert({
+        artist_id: artistId,
+        total_revenue: amount,
+        pending_payouts: status === 'pending_stripe_connection' ? artistPayout : 0,
+        last_updated: new Date().toISOString()
+      }, {
+        onConflict: 'artist_id'
+      })
+
+    if (revenueError) {
+      console.error('Error updating artist revenue:', revenueError)
+    }
+
+    console.log(`Transaction recorded for artist ${artistId}: ${status}`)
+  } catch (error) {
+    console.error('Error in recordTransaction:', error)
+  }
 }

@@ -17,11 +17,15 @@ export async function POST(req: NextRequest) {
       headers: {
         'Authorization': `Bearer ${apiKey}`,
         'Content-Type': 'application/json',
+        'OpenAI-Beta': 'assistants=v2'
       },
       body: JSON.stringify({ messages: [{ role: 'user', content: messages[messages.length-1].content }] })
     })
     const thread = await threadRes.json()
-    if (!thread.id) throw new Error('Failed to create thread')
+    if (!thread.id) {
+      console.error('OpenAI thread creation failed:', thread);
+      throw new Error('Failed to create thread')
+    }
 
     // Run the assistant on the thread
     const runRes = await fetch(`https://api.openai.com/v1/threads/${thread.id}/runs`, {
@@ -29,6 +33,7 @@ export async function POST(req: NextRequest) {
       headers: {
         'Authorization': `Bearer ${apiKey}`,
         'Content-Type': 'application/json',
+        'OpenAI-Beta': 'assistants=v2'
       },
       body: JSON.stringify({ assistant_id: assistantId })
     })
@@ -41,7 +46,10 @@ export async function POST(req: NextRequest) {
     while (status !== 'completed' && status !== 'failed' && status !== 'cancelled') {
       await new Promise(res => setTimeout(res, 1000))
       const pollRes = await fetch(`https://api.openai.com/v1/threads/${thread.id}/runs/${run.id}`, {
-        headers: { 'Authorization': `Bearer ${apiKey}` }
+        headers: { 
+          'Authorization': `Bearer ${apiKey}`,
+          'OpenAI-Beta': 'assistants=v2'
+        }
       })
       runResult = await pollRes.json()
       status = runResult.status
@@ -50,13 +58,17 @@ export async function POST(req: NextRequest) {
 
     // Get the messages from the thread
     const msgRes = await fetch(`https://api.openai.com/v1/threads/${thread.id}/messages`, {
-      headers: { 'Authorization': `Bearer ${apiKey}` }
+      headers: { 
+        'Authorization': `Bearer ${apiKey}`,
+        'OpenAI-Beta': 'assistants=v2'
+      }
     })
     const msgData = await msgRes.json()
     const lastMsg = msgData.data && (msgData.data as any[]).reverse().find((m: any) => m.role === 'assistant')
     const reply = lastMsg?.content?.[0]?.text?.value || 'Sorry, no response.'
     return NextResponse.json({ reply })
   } catch (err: any) {
+    console.error('OpenAI Assistant API error:', err);
     return NextResponse.json({ error: err.message || 'OpenAI Assistants API error' }, { status: 500 })
   }
 } 

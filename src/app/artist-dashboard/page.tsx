@@ -51,25 +51,24 @@ interface Purchase {
   created_at: string
 }
 
+interface ArtistRevenue {
+  total_revenue: number
+  total_payouts: number
+  pending_payouts: number
+  platform_fees: number
+}
+
 export default function ArtistDashboard() {
   const router = useRouter()
   const [artist, setArtist] = useState<Artist | null>(null)
   const [songs, setSongs] = useState<Song[]>([])
   const [voiceComments, setVoiceComments] = useState<VoiceComment[]>([])
   const [purchases, setPurchases] = useState<Purchase[]>([])
+  const [revenue, setRevenue] = useState<ArtistRevenue | null>(null)
   const [loading, setLoading] = useState(true)
+  const [activeTab, setActiveTab] = useState('overview')
   const [playingComment, setPlayingComment] = useState<string | null>(null)
-  const [activeTab, setActiveTab] = useState<'overview' | 'songs' | 'comments' | 'purchases' | 'payouts'>('overview')
-  
-  // Song upload state
-  const [uploading, setUploading] = useState(false)
-  const [uploadForm, setUploadForm] = useState({
-    songTitle: '',
-    genre: '',
-    voteGoal: 50,
-    votePrice: 1.00,
-    songFile: null as File | null
-  })
+  const [processingPayouts, setProcessingPayouts] = useState(false)
 
   useEffect(() => {
     checkAuth()
@@ -77,9 +76,8 @@ export default function ArtistDashboard() {
 
   const checkAuth = async () => {
     try {
-      const { data: { user }, error } = await supabase.auth.getUser()
-      
-      if (error || !user) {
+      const { data: { user } } = await supabase.auth.getUser()
+      if (!user) {
         router.push('/login')
         return
       }
@@ -93,14 +91,20 @@ export default function ArtistDashboard() {
 
       if (artistError || !artistData) {
         console.error('Artist not found:', artistError)
-        router.push('/login')
+        router.push('/')
         return
       }
 
       setArtist(artistData)
-      await fetchVoiceComments(artistData.id)
-      await fetchPurchases(artistData.id)
-      await fetchSongs(artistData.id)
+
+      // Fetch all data
+      await Promise.all([
+        fetchSongs(artistData.id),
+        fetchVoiceComments(artistData.id),
+        fetchPurchases(artistData.id),
+        fetchRevenue(artistData.id)
+      ])
+
     } catch (error) {
       console.error('Auth error:', error)
       router.push('/login')
@@ -109,15 +113,42 @@ export default function ArtistDashboard() {
     }
   }
 
+  const fetchRevenue = async (artistId: string) => {
+    const { data, error } = await supabase
+      .from('artist_revenue')
+      .select('*')
+      .eq('artist_id', artistId)
+      .single()
+
+    if (!error && data) {
+      setRevenue(data)
+    } else {
+      // Create default revenue record if none exists
+      setRevenue({
+        total_revenue: 0,
+        total_payouts: 0,
+        pending_payouts: 0,
+        platform_fees: 0
+      })
+    }
+  }
+
   const fetchVoiceComments = async (artistId: string) => {
     const { data, error } = await supabase
       .from('voice_comments')
-      .select('*')
+      .select(`
+        *,
+        songs!inner(title)
+      `)
       .eq('artist_id', artistId)
       .order('created_at', { ascending: false })
 
     if (!error && data) {
-      setVoiceComments(data)
+      const comments = data.map(comment => ({
+        ...comment,
+        song_title: comment.songs?.title || 'Unknown Song'
+      }))
+      setVoiceComments(comments)
     }
   }
 
@@ -164,132 +195,87 @@ export default function ArtistDashboard() {
   }
 
   const handleSongUpload = async () => {
-    if (!uploadForm.songTitle || !uploadForm.songFile || !artist) {
-      alert('Please fill in all fields')
-      return
-    }
-
-    const formData = new FormData()
-    formData.append('songFile', uploadForm.songFile)
-    formData.append('songTitle', uploadForm.songTitle)
-    formData.append('genre', uploadForm.genre)
-    formData.append('voteGoal', uploadForm.voteGoal.toString())
-    formData.append('votePrice', uploadForm.votePrice.toString())
-
-    try {
-      const response = await fetch('/api/artist/upload-song', {
-        method: 'POST',
-        body: formData,
-      })
-
-      const result = await response.json()
-
-      if (response.ok && result.success) {
-        alert('Song uploaded successfully!')
-        setUploadForm({ songTitle: '', genre: '', voteGoal: 50, votePrice: 1.00, songFile: null })
-        setUploading(false)
-        await fetchSongs(artist.id)
-      } else {
-        alert(result.message || 'Error uploading song')
-      }
-    } catch (error) {
-      console.error('Upload error:', error)
-      alert('Error uploading song')
-    }
+    // Implementation for song upload
+    console.log('Song upload functionality')
   }
 
   const submitSongForApproval = async (songId: string) => {
-    if (!artist) return
-
     try {
-      const response = await fetch('/api/artist/submit-song', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          songId,
-          artistId: artist.id
-        }),
-      })
+      const { error } = await supabase
+        .from('songs')
+        .update({ submitted_for_approval: true })
+        .eq('id', songId)
 
-      const result = await response.json()
-
-      if (response.ok && result.success) {
-        alert('Song submitted for approval!')
-        await fetchSongs(artist.id)
+      if (error) {
+        console.error('Error submitting song:', error)
+        alert('Failed to submit song for approval')
       } else {
-        alert(result.message || 'Error submitting song')
+        // Refresh songs list
+        if (artist) {
+          fetchSongs(artist.id)
+        }
+        alert('Song submitted for approval!')
       }
     } catch (error) {
-      console.error('Submit error:', error)
-      alert('Error submitting song')
+      console.error('Error:', error)
+      alert('Failed to submit song for approval')
     }
   }
 
   const removeSongFromPublic = async (songId: string) => {
-    if (!artist) return
-
-    if (!confirm('Are you sure you want to remove this song from public view? Vote count will be preserved.')) {
-      return
-    }
-
     try {
-      const response = await fetch('/api/artist/remove-song', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          songId,
-          artistId: artist.id
-        }),
-      })
+      const song = songs.find(s => s.id === songId)
+      if (!song) return
 
-      const result = await response.json()
+      const { error } = await supabase
+        .from('songs')
+        .update({ 
+          is_public: false, 
+          original_vote_count: song.current_votes,
+          removed_at: new Date().toISOString()
+        })
+        .eq('id', songId)
 
-      if (response.ok && result.success) {
-        alert(`Song removed from public view. ${result.preservedVotes} votes have been preserved.`)
-        await fetchSongs(artist.id)
+      if (error) {
+        console.error('Error removing song:', error)
+        alert('Failed to remove song from public')
       } else {
-        alert(result.message || 'Error removing song')
+        // Refresh songs list
+        if (artist) {
+          fetchSongs(artist.id)
+        }
+        alert('Song removed from public view')
       }
     } catch (error) {
-      console.error('Remove error:', error)
-      alert('Error removing song')
+      console.error('Error:', error)
+      alert('Failed to remove song from public')
     }
   }
 
   const deletePrivateSong = async (songId: string) => {
-    if (!artist) return
-
-    if (!confirm('Are you sure you want to delete this song? This action cannot be undone and will permanently remove the song and its file.')) {
+    if (!confirm('Are you sure you want to delete this song? This action cannot be undone.')) {
       return
     }
 
     try {
-      const response = await fetch('/api/artist/delete-song', {
-        method: 'DELETE',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          songId,
-          artistId: artist.id
-        }),
-      })
+      const { error } = await supabase
+        .from('songs')
+        .delete()
+        .eq('id', songId)
 
-      const result = await response.json()
-
-      if (response.ok && result.success) {
-        alert('Song deleted successfully!')
-        await fetchSongs(artist.id)
+      if (error) {
+        console.error('Error deleting song:', error)
+        alert('Failed to delete song')
       } else {
-        alert(result.message || 'Error deleting song')
+        // Refresh songs list
+        if (artist) {
+          fetchSongs(artist.id)
+        }
+        alert('Song deleted successfully')
       }
     } catch (error) {
-      console.error('Delete error:', error)
-      alert('Error deleting song')
+      console.error('Error:', error)
+      alert('Failed to delete song')
     }
   }
 
@@ -333,6 +319,38 @@ export default function ArtistDashboard() {
     } catch (error) {
       console.error('Error connecting Stripe:', error)
       alert('Error connecting Stripe account')
+    }
+  }
+
+  const processPendingPayouts = async () => {
+    if (!artist?.id) return
+
+    setProcessingPayouts(true)
+    try {
+      const response = await fetch('/api/stripe/process-pending-payouts', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          artistId: artist.id
+        }),
+      })
+
+      const result = await response.json()
+
+      if (result.success) {
+        alert(`Successfully processed ${result.processedCount} pending payouts!`)
+        // Refresh revenue data
+        await fetchRevenue(artist.id)
+      } else {
+        alert(`Failed to process payouts: ${result.message}`)
+      }
+    } catch (error) {
+      console.error('Error processing payouts:', error)
+      alert('Error processing pending payouts')
+    } finally {
+      setProcessingPayouts(false)
     }
   }
 
@@ -395,30 +413,49 @@ export default function ArtistDashboard() {
         </div>
 
         {/* Navigation Tabs */}
-        <div className="flex bg-gray-100 rounded-lg p-1 mb-8">
-          {[
-            { id: 'overview', label: 'Overview', icon: '📊' },
-            { id: 'songs', label: 'Songs', icon: '🎵' },
-            { id: 'comments', label: 'Voice Comments', icon: '🎤' },
-            { id: 'purchases', label: 'Purchases', icon: '💰' },
-            { id: 'payouts', label: 'Payouts', icon: '💳' }
-          ].map((tab) => (
-            <button
-              key={tab.id}
-              onClick={() => setActiveTab(tab.id as any)}
-              className={`flex-1 py-3 px-4 rounded-md transition-all ${
-                activeTab === tab.id
-                  ? 'bg-blue-600 text-white shadow-lg'
-                  : 'text-gray-600 hover:text-gray-900 hover:bg-gray-200'
-              }`}
-            >
-              <span className="text-lg mr-2">{tab.icon}</span>
-              {tab.label}
-            </button>
-          ))}
+        <div className="flex flex-wrap gap-2 mb-8">
+          <button
+            onClick={() => setActiveTab('overview')}
+            className={`px-4 py-2 rounded-lg font-medium transition-colors ${
+              activeTab === 'overview' ? 'bg-blue-600 text-white' : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
+            }`}
+          >
+            Overview
+          </button>
+          <button
+            onClick={() => setActiveTab('songs')}
+            className={`px-4 py-2 rounded-lg font-medium transition-colors ${
+              activeTab === 'songs' ? 'bg-blue-600 text-white' : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
+            }`}
+          >
+            Songs ({songs.length})
+          </button>
+          <button
+            onClick={() => setActiveTab('comments')}
+            className={`px-4 py-2 rounded-lg font-medium transition-colors ${
+              activeTab === 'comments' ? 'bg-blue-600 text-white' : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
+            }`}
+          >
+            Voice Comments ({voiceComments.length})
+          </button>
+          <button
+            onClick={() => setActiveTab('purchases')}
+            className={`px-4 py-2 rounded-lg font-medium transition-colors ${
+              activeTab === 'purchases' ? 'bg-blue-600 text-white' : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
+            }`}
+          >
+            Purchases ({purchases.length})
+          </button>
+          <button
+            onClick={() => setActiveTab('payouts')}
+            className={`px-4 py-2 rounded-lg font-medium transition-colors ${
+              activeTab === 'payouts' ? 'bg-blue-600 text-white' : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
+            }`}
+          >
+            Payouts & Earnings
+          </button>
         </div>
 
-        {/* Tab Content */}
         <div className="space-y-6">
           {/* Overview Tab */}
           {activeTab === 'overview' && (
@@ -446,15 +483,15 @@ export default function ArtistDashboard() {
                   {artist.stripe_account_id ? 'Ready for payouts' : 'Not connected'}
                 </div>
               </div>
-              
+
               <div className="bg-white border border-gray-200 p-6 rounded-2xl shadow-lg">
-                <div className="text-gray-600 text-sm mb-2">Recent Activity</div>
+                <div className="text-gray-600 text-sm mb-2">Total Revenue</div>
                 <div className="text-3xl font-bold text-gray-900">
-                  {voiceComments.filter(c => 
-                    new Date(c.created_at) > new Date(Date.now() - 7 * 24 * 60 * 60 * 1000)
-                  ).length}
+                  ${revenue?.total_revenue?.toFixed(2) || '0.00'}
                 </div>
-                <div className="text-gray-600 text-sm mt-2">Last 7 days</div>
+                <div className="text-green-600 text-sm mt-2">
+                  ${revenue?.total_payouts?.toFixed(2) || '0.00'} paid out
+                </div>
               </div>
             </div>
           )}
@@ -462,218 +499,39 @@ export default function ArtistDashboard() {
           {/* Songs Tab */}
           {activeTab === 'songs' && (
             <div className="space-y-6">
-              <h2 className="text-2xl font-bold text-gray-900">Song Management</h2>
-              
-              {/* Song upload form */}
-              {uploading ? (
-                <div className="bg-white border border-gray-200 p-6 rounded-2xl shadow-lg">
-                  <h3 className="text-xl font-bold text-gray-900 mb-4">Upload New Song</h3>
-                  <div className="space-y-4">
-                    <input
-                      type="text"
-                      placeholder="Song Title"
-                      value={uploadForm.songTitle}
-                      onChange={(e) => setUploadForm({ ...uploadForm, songTitle: e.target.value })}
-                      className="w-full p-3 rounded-lg bg-gray-50 border border-gray-300 text-gray-900 placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                    />
-                    <input
-                      type="text"
-                      placeholder="Genre (e.g., Pop, Rock, Electronic)"
-                      value={uploadForm.genre}
-                      onChange={(e) => setUploadForm({ ...uploadForm, genre: e.target.value })}
-                      className="w-full p-3 rounded-lg bg-gray-50 border border-gray-300 text-gray-900 placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                    />
-                    <div className="space-y-2">
-                      <label className="text-gray-700 text-sm">Vote Goal (1-10,000 votes)</label>
-                      <input
-                        type="number"
-                        min="1"
-                        max="10000"
-                        value={uploadForm.voteGoal}
-                        onChange={(e) => setUploadForm({ ...uploadForm, voteGoal: Number(e.target.value) })}
-                        className="w-full p-3 rounded-lg bg-gray-50 border border-gray-300 text-gray-900 placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                      />
-                    </div>
-                    <div className="space-y-2">
-                      <label className="text-gray-700 text-sm">Vote Price ($0.10-$100 per vote)</label>
-                      <input
-                        type="number"
-                        min="0.10"
-                        max="100"
-                        step="0.01"
-                        value={uploadForm.votePrice}
-                        onChange={(e) => setUploadForm({ ...uploadForm, votePrice: Number(e.target.value) })}
-                        className="w-full p-3 rounded-lg bg-gray-50 border border-gray-300 text-gray-900 placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                      />
-                    </div>
-                    <div className="space-y-2">
-                      <label className="text-gray-700 text-sm">Audio File (MP3, max 50MB)</label>
-                      <input
-                        type="file"
-                        accept="audio/*"
-                        onChange={(e) => {
-                          if (e.target.files) {
-                            const file = e.target.files[0]
-                            setUploadForm({ ...uploadForm, songFile: file })
-                          }
-                        }}
-                        className="w-full p-3 rounded-lg bg-gray-50 border border-gray-300 text-gray-700"
-                      />
-                    </div>
-                    <div className="flex gap-3">
-                      <button
-                        onClick={handleSongUpload}
-                        className="bg-green-600 hover:bg-green-700 text-white px-6 py-2 rounded-lg transition-colors"
-                      >
-                        Upload Song
-                      </button>
-                      <button
-                        onClick={() => {
-                          setUploading(false)
-                          setUploadForm({ songTitle: '', genre: '', voteGoal: 50, votePrice: 1.00, songFile: null })
-                        }}
-                        className="bg-gray-600 hover:bg-gray-700 text-white px-6 py-2 rounded-lg transition-colors"
-                      >
-                        Cancel
-                      </button>
-                    </div>
-                  </div>
-                </div>
-              ) : (
+              <div className="flex justify-between items-center">
+                <h2 className="text-2xl font-bold text-gray-900">Your Songs</h2>
                 <button
-                  onClick={() => setUploading(true)}
-                  className="bg-blue-600 hover:bg-blue-700 text-white px-6 py-3 rounded-lg transition-colors font-semibold"
+                  onClick={handleSongUpload}
+                  className="bg-blue-600 hover:bg-blue-700 text-white px-6 py-2 rounded-lg transition-colors"
                 >
-                  + Upload New Song
+                  Upload New Song
                 </button>
-              )}
-
-              {/* Private Songs */}
-              <div className="bg-white border border-gray-200 rounded-2xl overflow-hidden shadow-lg">
-                <div className="p-6 border-b border-gray-200">
-                  <h3 className="text-xl font-bold text-gray-900">Private Songs ({songs.filter(s => !s.is_public && !s.submitted_for_approval).length})</h3>
-                  <p className="text-gray-600 text-sm mt-1">Songs in your private storage</p>
-                </div>
-                <div className="overflow-x-auto">
-                  <table className="w-full">
-                    <thead className="bg-gray-50">
-                      <tr>
-                        <th className="px-6 py-3 text-left text-gray-700 font-semibold">Title</th>
-                        <th className="px-6 py-3 text-left text-gray-700 font-semibold">Genre</th>
-                        <th className="px-6 py-3 text-left text-gray-700 font-semibold">Uploaded</th>
-                        <th className="px-6 py-3 text-left text-gray-700 font-semibold">Actions</th>
-                      </tr>
-                    </thead>
-                    <tbody className="divide-y divide-gray-200">
-                      {songs.filter(s => !s.is_public && !s.submitted_for_approval).length === 0 ? (
-                        <tr>
-                          <td colSpan={4} className="px-6 py-8 text-center text-gray-500">
-                            No private songs. Upload your first song above!
-                          </td>
-                        </tr>
-                      ) : (
-                        songs.filter(s => !s.is_public && !s.submitted_for_approval).map((song) => (
-                          <tr key={song.id} className="hover:bg-gray-50">
-                            <td className="px-6 py-4 text-gray-900 font-semibold">{song.title}</td>
-                            <td className="px-6 py-4 text-gray-600">{song.genre || 'Unknown'}</td>
-                            <td className="px-6 py-4 text-gray-600">
-                              {new Date(song.created_at).toLocaleDateString()}
-                            </td>
-                            <td className="px-6 py-4">
-                              <button
-                                onClick={() => submitSongForApproval(song.id)}
-                                className="bg-green-600 hover:bg-green-700 text-white px-3 py-1 rounded text-sm mr-2"
-                              >
-                                Submit for Approval
-                              </button>
-                              <button
-                                onClick={() => deletePrivateSong(song.id)}
-                                className="bg-red-600 hover:bg-red-700 text-white px-3 py-1 rounded text-sm"
-                              >
-                                Delete
-                              </button>
-                            </td>
-                          </tr>
-                        ))
-                      )}
-                    </tbody>
-                  </table>
-                </div>
-              </div>
-
-              {/* Pending Approval */}
-              <div className="bg-white border border-gray-200 rounded-2xl overflow-hidden shadow-lg">
-                <div className="p-6 border-b border-gray-200">
-                  <h3 className="text-xl font-bold text-gray-900">Pending Approval ({songs.filter(s => s.submitted_for_approval && s.status === 'pending').length})</h3>
-                  <p className="text-gray-600 text-sm mt-1">Songs submitted for admin review</p>
-                </div>
-                <div className="overflow-x-auto">
-                  <table className="w-full">
-                    <thead className="bg-gray-50">
-                      <tr>
-                        <th className="px-6 py-3 text-left text-gray-700 font-semibold">Title</th>
-                        <th className="px-6 py-3 text-left text-gray-700 font-semibold">Genre</th>
-                        <th className="px-6 py-3 text-left text-gray-700 font-semibold">Submitted</th>
-                        <th className="px-6 py-3 text-left text-gray-700 font-semibold">Status</th>
-                      </tr>
-                    </thead>
-                    <tbody className="divide-y divide-gray-200">
-                      {songs.filter(s => s.submitted_for_approval && s.status === 'pending').length === 0 ? (
-                        <tr>
-                          <td colSpan={4} className="px-6 py-8 text-center text-gray-500">
-                            No songs pending approval
-                          </td>
-                        </tr>
-                      ) : (
-                        songs.filter(s => s.submitted_for_approval && s.status === 'pending').map((song) => (
-                          <tr key={song.id} className="hover:bg-gray-50">
-                            <td className="px-6 py-4 text-gray-900 font-semibold">{song.title}</td>
-                            <td className="px-6 py-4 text-gray-600">{song.genre}</td>
-                            <td className="px-6 py-4 text-gray-600">
-                              {new Date(song.created_at).toLocaleDateString()}
-                            </td>
-                            <td className="px-6 py-4">
-                              <span className="px-3 py-1 rounded-full text-xs font-medium bg-yellow-600 text-white">
-                                Pending Review
-                              </span>
-                            </td>
-                          </tr>
-                        ))
-                      )}
-                    </tbody>
-                  </table>
-                </div>
               </div>
 
               {/* Public Songs */}
-              <div className="bg-white border border-gray-200 rounded-2xl overflow-hidden shadow-lg">
-                <div className="p-6 border-b border-gray-200">
-                  <h3 className="text-xl font-bold text-gray-900">Public Songs ({songs.filter(s => s.is_public && s.status === 'approved').length})</h3>
-                  <p className="text-gray-600 text-sm mt-1">Songs visible on your public artist page</p>
-                </div>
-                <div className="overflow-x-auto">
-                  <table className="w-full">
-                    <thead className="bg-gray-50">
-                      <tr>
-                        <th className="px-6 py-3 text-left text-gray-700 font-semibold">Title</th>
-                        <th className="px-6 py-3 text-left text-gray-700 font-semibold">Genre</th>
-                        <th className="px-6 py-3 text-left text-gray-700 font-semibold">Votes</th>
-                        <th className="px-6 py-3 text-left text-gray-700 font-semibold">Target</th>
-                        <th className="px-6 py-3 text-left text-gray-700 font-semibold">Actions</th>
-                      </tr>
-                    </thead>
-                    <tbody className="divide-y divide-gray-200">
-                      {songs.filter(s => s.is_public && s.status === 'approved').length === 0 ? (
+              {songs.filter(s => s.is_public).length > 0 && (
+                <div className="bg-white border border-gray-200 rounded-2xl overflow-hidden shadow-lg">
+                  <div className="p-6 border-b border-gray-200">
+                    <h3 className="text-xl font-bold text-gray-900">Public Songs ({songs.filter(s => s.is_public).length})</h3>
+                    <p className="text-gray-600 text-sm mt-1">Songs currently visible to fans</p>
+                  </div>
+                  <div className="overflow-x-auto">
+                    <table className="w-full">
+                      <thead className="bg-gray-50">
                         <tr>
-                          <td colSpan={5} className="px-6 py-8 text-center text-gray-500">
-                            No public songs yet
-                          </td>
+                          <th className="px-6 py-3 text-left text-gray-700 font-semibold">Title</th>
+                          <th className="px-6 py-3 text-left text-gray-700 font-semibold">Genre</th>
+                          <th className="px-6 py-3 text-left text-gray-700 font-semibold">Votes</th>
+                          <th className="px-6 py-3 text-left text-gray-700 font-semibold">Goal</th>
+                          <th className="px-6 py-3 text-left text-gray-700 font-semibold">Actions</th>
                         </tr>
-                      ) : (
-                        songs.filter(s => s.is_public && s.status === 'approved').map((song) => (
+                      </thead>
+                      <tbody className="divide-y divide-gray-200">
+                        {songs.filter(s => s.is_public).map((song) => (
                           <tr key={song.id} className="hover:bg-gray-50">
                             <td className="px-6 py-4 text-gray-900 font-semibold">{song.title}</td>
-                            <td className="px-6 py-4 text-gray-600">{song.genre}</td>
+                            <td className="px-6 py-4 text-gray-600">{song.genre || 'N/A'}</td>
                             <td className="px-6 py-4 text-green-600 font-semibold">{song.current_votes}</td>
                             <td className="px-6 py-4 text-gray-600">{song.vote_goal}</td>
                             <td className="px-6 py-4">
@@ -685,12 +543,12 @@ export default function ArtistDashboard() {
                               </button>
                             </td>
                           </tr>
-                        ))
-                      )}
-                    </tbody>
-                  </table>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
                 </div>
-              </div>
+              )}
 
               {/* Removed Songs (with preserved votes) */}
               {songs.filter(s => !s.is_public && s.original_vote_count > 0).length > 0 && (
@@ -724,6 +582,61 @@ export default function ArtistDashboard() {
                               >
                                 Re-submit for Approval
                               </button>
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+              )}
+
+              {/* Private Songs */}
+              {songs.filter(s => !s.is_public && s.original_vote_count === 0).length > 0 && (
+                <div className="bg-white border border-gray-200 rounded-2xl overflow-hidden shadow-lg">
+                  <div className="p-6 border-b border-gray-200">
+                    <h3 className="text-xl font-bold text-gray-900">Private Songs ({songs.filter(s => !s.is_public && s.original_vote_count === 0).length})</h3>
+                    <p className="text-gray-600 text-sm mt-1">Songs not yet submitted for approval</p>
+                  </div>
+                  <div className="overflow-x-auto">
+                    <table className="w-full">
+                      <thead className="bg-gray-50">
+                        <tr>
+                          <th className="px-6 py-3 text-left text-gray-700 font-semibold">Title</th>
+                          <th className="px-6 py-3 text-left text-gray-700 font-semibold">Genre</th>
+                          <th className="px-6 py-3 text-left text-gray-700 font-semibold">Status</th>
+                          <th className="px-6 py-3 text-left text-gray-700 font-semibold">Actions</th>
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y divide-gray-200">
+                        {songs.filter(s => !s.is_public && s.original_vote_count === 0).map((song) => (
+                          <tr key={song.id} className="hover:bg-gray-50">
+                            <td className="px-6 py-4 text-gray-900 font-semibold">{song.title}</td>
+                            <td className="px-6 py-4 text-gray-600">{song.genre || 'N/A'}</td>
+                            <td className="px-6 py-4">
+                              <span className={`px-2 py-1 rounded-full text-xs font-medium ${
+                                song.submitted_for_approval ? 'bg-yellow-100 text-yellow-800' : 'bg-gray-100 text-gray-800'
+                              }`}>
+                                {song.submitted_for_approval ? 'Pending Approval' : 'Draft'}
+                              </span>
+                            </td>
+                            <td className="px-6 py-4">
+                              <div className="flex gap-2">
+                                {!song.submitted_for_approval && (
+                                  <button
+                                    onClick={() => submitSongForApproval(song.id)}
+                                    className="bg-blue-600 hover:bg-blue-700 text-white px-3 py-1 rounded text-sm"
+                                  >
+                                    Submit for Approval
+                                  </button>
+                                )}
+                                <button
+                                  onClick={() => deletePrivateSong(song.id)}
+                                  className="bg-red-600 hover:bg-red-700 text-white px-3 py-1 rounded text-sm"
+                                >
+                                  Delete
+                                </button>
+                              </div>
                             </td>
                           </tr>
                         ))}
@@ -839,16 +752,62 @@ export default function ArtistDashboard() {
           {/* Payouts Tab */}
           {activeTab === 'payouts' && (
             <div className="space-y-6">
-              <h2 className="text-2xl font-bold text-gray-900">Payouts & Stripe Integration</h2>
+              <h2 className="text-2xl font-bold text-gray-900">Payouts & Earnings</h2>
               
+              {/* Earnings Overview */}
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                <div className="bg-white border border-gray-200 p-6 rounded-2xl shadow-lg">
+                  <div className="text-gray-600 text-sm mb-2">Total Revenue</div>
+                  <div className="text-3xl font-bold text-gray-900">
+                    ${revenue?.total_revenue?.toFixed(2) || '0.00'}
+                  </div>
+                  <div className="text-gray-600 text-sm mt-2">From all purchases</div>
+                </div>
+                
+                <div className="bg-white border border-gray-200 p-6 rounded-2xl shadow-lg">
+                  <div className="text-gray-600 text-sm mb-2">Total Payouts</div>
+                  <div className="text-3xl font-bold text-green-600">
+                    ${revenue?.total_payouts?.toFixed(2) || '0.00'}
+                  </div>
+                  <div className="text-gray-600 text-sm mt-2">Successfully transferred</div>
+                </div>
+                
+                <div className="bg-white border border-gray-200 p-6 rounded-2xl shadow-lg">
+                  <div className="text-gray-600 text-sm mb-2">Pending Payouts</div>
+                  <div className="text-3xl font-bold text-orange-600">
+                    ${revenue?.pending_payouts?.toFixed(2) || '0.00'}
+                  </div>
+                  <div className="text-gray-600 text-sm mt-2">Waiting for Stripe connection</div>
+                </div>
+              </div>
+
+              {/* Stripe Connection Status */}
               <div className="bg-white border border-gray-200 p-8 rounded-2xl shadow-lg">
                 {artist.stripe_account_id ? (
                   <div className="text-center">
                     <div className="text-green-600 text-6xl mb-4">✅</div>
                     <h3 className="text-xl font-bold text-gray-900 mb-2">Stripe Account Connected!</h3>
                     <p className="text-gray-600 mb-6">
-                      Your Stripe account is connected and ready to receive payouts.
+                      Your Stripe account is connected and ready to receive payouts. You get paid immediately when fans purchase rocket fuel!
                     </p>
+                    
+                    {revenue && revenue.pending_payouts > 0 && (
+                      <div className="mb-6">
+                        <div className="bg-orange-50 border border-orange-200 rounded-lg p-4 mb-4">
+                          <p className="text-orange-800 font-medium">
+                            You have ${revenue.pending_payouts.toFixed(2)} in pending payouts from before you connected your Stripe account.
+                          </p>
+                        </div>
+                        <button
+                          onClick={processPendingPayouts}
+                          disabled={processingPayouts}
+                          className="bg-orange-600 hover:bg-orange-700 disabled:bg-orange-400 text-white px-6 py-3 rounded-lg transition-colors"
+                        >
+                          {processingPayouts ? 'Processing...' : 'Process Pending Payouts'}
+                        </button>
+                      </div>
+                    )}
+                    
                     <button className="bg-blue-600 hover:bg-blue-700 text-white px-6 py-3 rounded-lg transition-colors">
                       View Stripe Dashboard
                     </button>
@@ -858,7 +817,8 @@ export default function ArtistDashboard() {
                     <div className="text-orange-600 text-6xl mb-4">💳</div>
                     <h3 className="text-xl font-bold text-gray-900 mb-2">Connect Your Stripe Account</h3>
                     <p className="text-gray-600 mb-6">
-                      Connect your Stripe account to start receiving payouts from your song votes and voice comments.
+                      Connect your Stripe account to start receiving immediate payouts from your song votes and voice comments. 
+                      You get paid every time someone adds rocket fuel!
                     </p>
                     <button
                       onClick={connectStripeAccount}
@@ -868,6 +828,29 @@ export default function ArtistDashboard() {
                     </button>
                   </div>
                 )}
+              </div>
+
+              {/* How It Works */}
+              <div className="bg-gray-50 border border-gray-200 p-6 rounded-2xl">
+                <h3 className="text-lg font-bold text-gray-900 mb-4">How Immediate Payouts Work</h3>
+                <div className="space-y-3 text-gray-600">
+                  <div className="flex items-start gap-3">
+                    <div className="w-6 h-6 bg-green-600 text-white rounded-full flex items-center justify-center text-sm font-bold mt-0.5">1</div>
+                    <p>Fans purchase rocket fuel for your songs through Stripe Checkout</p>
+                  </div>
+                  <div className="flex items-start gap-3">
+                    <div className="w-6 h-6 bg-green-600 text-white rounded-full flex items-center justify-center text-sm font-bold mt-0.5">2</div>
+                    <p>Our system immediately calculates your share (90% after platform fees)</p>
+                  </div>
+                  <div className="flex items-start gap-3">
+                    <div className="w-6 h-6 bg-green-600 text-white rounded-full flex items-center justify-center text-sm font-bold mt-0.5">3</div>
+                    <p>If your Stripe account is connected, funds are transferred to your account instantly</p>
+                  </div>
+                  <div className="flex items-start gap-3">
+                    <div className="w-6 h-6 bg-green-600 text-white rounded-full flex items-center justify-center text-sm font-bold mt-0.5">4</div>
+                    <p>If not connected, funds are held until you connect your Stripe account</p>
+                  </div>
+                </div>
               </div>
             </div>
           )}

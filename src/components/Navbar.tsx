@@ -24,6 +24,15 @@ export default function Navbar() {
   const { cartItems } = useCart()
   const totalItems = Array.isArray(cartItems) ? cartItems.reduce((acc, item) => acc + item.voteCount, 0) : 0
 
+  const scrollToHowItWorksHandler = (e: React.MouseEvent) => {
+    e.preventDefault();
+    // Direct scroll logic (if needed):
+    const section = document.getElementById('how-it-works');
+    if (section) {
+      section.scrollIntoView({ behavior: 'smooth' });
+    }
+  };
+
   return (
     <header className="sticky top-0 z-50 py-4 bg-white/95 backdrop-blur-md border-b border-gray-200">
       <div className="container mx-auto flex justify-between items-center px-4 md:px-0">
@@ -35,6 +44,7 @@ export default function Navbar() {
           <a
             href="#how-it-works"
             className="hover:text-black transition-colors bg-transparent border-none text-gray-700 cursor-pointer"
+            onClick={scrollToHowItWorksHandler}
           >
             How It Works
           </a>

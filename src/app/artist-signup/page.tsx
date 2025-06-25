@@ -469,8 +469,10 @@ export default function ArtistSignup() {
 
               <h2 className="text-xl font-bold text-[#E55A2B] mt-8 mb-4">5. Payments & Payouts</h2>
               <ul className="mb-6 pl-6">
-                <li>Votes are cast using real money through Stripe. We collect a commission on each transaction.</li>
+                <li>Votes are cast using real money through Stripe. We collect a 10% platform fee on each transaction.</li>
+                <li><strong>You get paid every time someone adds rocket fuel (makes a purchase), not just when your song reaches its goal.</strong> Each fan's payment goes directly to your connected Stripe account, so you start earning immediately—no need to wait for a funding goal to be reached.</li>
                 <li>Payouts to artists are processed via Stripe Connect. Artists are responsible for tax reporting and compliance in their jurisdiction.</li>
+                <li>If your Stripe account is not connected, funds will be held until you complete the Stripe onboarding process.</li>
                 <li>Fraudulent earnings or impersonation will result in withheld payouts and account bans.</li>
               </ul>
 
