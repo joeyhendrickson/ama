@@ -32,6 +32,7 @@ type Song = {
   status: string
 }
 
+// Force deployment - latest changes
 export default function Home() {
   const [artists, setArtists] = useState<Artist[]>([])
   const [recentSongs, setRecentSongs] = useState<Song[]>([])
