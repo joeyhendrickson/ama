@@ -32,7 +32,7 @@ type Song = {
   status: string
 }
 
-// Force new deployment - ensure all changes are live
+// Trigger redeploy - ensure Vercel picks up all latest changes
 export default function Home() {
   const [artists, setArtists] = useState<Artist[]>([])
   const [recentSongs, setRecentSongs] = useState<Song[]>([])
