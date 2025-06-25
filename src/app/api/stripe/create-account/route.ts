@@ -4,12 +4,22 @@ import { NextRequest, NextResponse } from 'next/server'
 import Stripe from 'stripe'
 import { supabase } from '@/lib/supabaseClient'
 
-const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!, {
-  apiVersion: '2025-05-28.basil',
-})
+// Create Stripe client only if we have the secret key
+const stripeSecretKey = process.env.STRIPE_SECRET_KEY || 'placeholder_key'
+const stripe = stripeSecretKey !== 'placeholder_key' 
+  ? new Stripe(stripeSecretKey, { apiVersion: '2025-05-28.basil' })
+  : null
 
 export async function POST(request: NextRequest) {
   try {
+    // If we don't have a valid Stripe client, return an error
+    if (!stripe) {
+      return NextResponse.json(
+        { success: false, message: 'Payment service not available' },
+        { status: 503 }
+      )
+    }
+
     const { artistId, email } = await request.json()
 
     if (!artistId || !email) {
