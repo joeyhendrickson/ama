@@ -253,7 +253,7 @@ export default function Home() {
             Raw and Real Songs
           </h1>
           <p className="text-lg md:text-xl text-gray-600 mt-6 max-w-2xl mx-auto">
-            Support independent artists with feedback and contributions on songs that were just written
+            Hear the raw songs that artists just wrote. Provide feedback. Make contributions.
           </p>
           <div className="mt-10 flex flex-col sm:flex-row justify-center items-center gap-4">
             <button 
