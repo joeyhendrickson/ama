@@ -4,13 +4,13 @@ import React, { forwardRef } from 'react'
 
 const features = [
   {
-    title: 'Get Paid!',
+    title: 'Gain Contributions',
     icon: (
       <svg className="w-10 h-10 text-[#8B5CF6]" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
         <text x="12" y="20" textAnchor="middle" fontSize="24" fontWeight="bold" fill="#8B5CF6" dominantBaseline="middle">$</text>
       </svg>
     ),
-    description: 'Audiences add rocket fuel ($$$) to their favorite unreleased songs. When you post a song on your artist page, rocket fuel pays you to launch your song into Spotify. You get paid from every bit of rocket fuel!'
+    description: 'Audiences can support your unreleased songs with contributions during the early stage of your creation process. See which songs ideas resonate most before you fully produce, release, and distribute on Bandcamp, Spotify, or SoundCloud.'
   },
   {
     title: 'NFTs',
@@ -22,7 +22,7 @@ const features = [
         <rect x="3" y="5" width="18" height="14" rx="2" stroke="#4F46E5" strokeWidth="2" fill="none" />
       </svg>
     ),
-    description: 'Give exclusive limited-edition NFTs to audiences that add rocket fuel to your songs! You can determine the benefits that your NFTs provide voters: backstage passes, house concerts, private showcases, and more!'
+    description: 'You can reward your supporters with NFT badges that give them backstage passes, private invites to house concerts, early arrival at your release show, free parking, and more!'
   },
   {
     title: 'Song Feedback',
@@ -32,7 +32,7 @@ const features = [
         <path strokeLinecap="round" strokeLinejoin="round" d="M19 12c0-1.657-1.343-3-3-3m3 3c0 1.657-1.343 3-3 3m3-3h0" />
       </svg>
     ),
-    description: 'To inspire rocket fuel, audiences can also click on the song and leave voice comments for feedback. They will be encouraged to pay for their rocket fuel so that their comments feedback sends to you!'
+    description: 'Potential supporters can click on the song and leave voice comments for feedback. They will be encouraged to make a paid contribution so that their recorded comments send to you!'
   },
   {
     title: 'AI Music Manager',

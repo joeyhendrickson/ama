@@ -248,12 +248,12 @@ export default function Home() {
       <div className={isModalOpen ? 'opacity-0 pointer-events-none select-none' : ''}>
         <section className="text-center py-20 sm:py-32 container mx-auto">
           <h1 className="text-5xl md:text-7xl font-bold text-gray-900 leading-tight">
-            Vote to Launch
+            Help Launch
             <br />
-            New Songs on Spotify
+            New Songs
           </h1>
           <p className="text-lg md:text-xl text-gray-600 mt-6 max-w-2xl mx-auto">
-            Support your favorite artists and earn NFTs by adding rocket fuel to their songs!
+            Support your favorite artists with feedback on songs that were just written
           </p>
           <div className="mt-10 flex flex-col sm:flex-row justify-center items-center gap-4">
             <button 
@@ -328,7 +328,7 @@ export default function Home() {
                       <button 
                         className="w-full bg-black hover:bg-gray-800 text-white font-bold py-3 px-6 rounded-lg transition-all duration-300 transform hover:scale-105 shadow-lg"
                       >
-                        Vote Now
+                        {index === 0 ? 'Collaborate' : index === 1 ? 'Support' : index === 2 ? 'Contribute' : 'Listen'}
                       </button>
                     </Link>
                   </div>
@@ -436,7 +436,7 @@ export default function Home() {
             className="bg-[#E55A2B] text-white px-4 py-2 rounded-full shadow-lg hover:bg-[#D14A1B] transition-colors flex items-center gap-2"
           >
             <span>🛒</span>
-            <span>{Array.isArray(cartItems) ? cartItems.reduce((acc, item) => acc + item.voteCount, 0) : 0} rocket fuel</span>
+            <span>{Array.isArray(cartItems) ? cartItems.reduce((acc, item) => acc + item.voteCount, 0) : 0} rocket fuel song</span>
           </Link>
         </div>
       )}
