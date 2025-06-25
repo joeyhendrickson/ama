@@ -214,7 +214,7 @@ export default function CartPage() {
             <div className="text-gray-600 text-lg mb-4">Your contribution tank is empty!</div>
             <Link 
               href="/"
-              className="inline-flex items-center px-6 py-3 bg-blue-600 hover:bg-blue-700 text-white font-semibold rounded-xl transition-all duration-300 shadow-lg"
+              className="inline-flex items-center px-6 py-3 bg-[#E55A2B] hover:bg-[#D14A1B] text-white font-semibold rounded-xl transition-all duration-300 shadow-lg"
             >
               <svg
                 xmlns="http://www.w3.org/2000/svg"
@@ -247,7 +247,7 @@ export default function CartPage() {
                         <div className="text-gray-600 text-sm">Contributions: {item.voteCount}</div>
                       </div>
                       <div className="text-right ml-4">
-                        <div className="text-blue-600 font-bold text-lg">
+                        <div className="text-[#E55A2B] font-bold text-lg">
                           ${(item.voteCount * item.votePrice).toFixed(2)}
                         </div>
                         <button
@@ -338,7 +338,7 @@ export default function CartPage() {
                 <div className="flex flex-col sm:flex-row gap-3">
                   <button
                     onClick={handleCheckout}
-                    className="bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 px-8 rounded-xl transition-all duration-300 flex items-center justify-center gap-3 shadow-lg text-lg"
+                    className="bg-[#E55A2B] hover:bg-[#D14A1B] text-white font-bold py-3 px-8 rounded-xl transition-all duration-300 flex items-center justify-center gap-3 shadow-lg text-lg"
                   >
                     <svg
                       xmlns="http://www.w3.org/2000/svg"

@@ -10,7 +10,7 @@ const features = [
         <text x="12" y="20" textAnchor="middle" fontSize="24" fontWeight="bold" fill="#8B5CF6" dominantBaseline="middle">$</text>
       </svg>
     ),
-    description: 'Audiences can support your unreleased songs with contributions during the early stage of your creation process. See which songs ideas resonate most before you fully produce, release, and distribute on Bandcamp, Spotify, or SoundCloud.'
+    description: 'Get support for unreleased songs during the early stage of your creation process. See which songs ideas resonate most before you fully produce, release, and distribute on Bandcamp, Spotify, or SoundCloud.'
   },
   {
     title: 'NFTs',
@@ -45,7 +45,7 @@ const features = [
         <rect x="11" y="16" width="2" height="2" rx="1" fill="#fff" />
       </svg>
     ),
-    description: 'Get started by submitting your song or talking with the AI Music Manager on the bottom left (<-- over there!) You can ask it anything about LaunchThatSong.com or even the marketing plan you can develop to bring audiences in.'
+    description: 'Submit your song or chat with the AI Music Manager on the bottom left (<-- over there!) You can ask it anything about LaunchThatSong.com or even the marketing plan you can develop to invite support and feedback.'
   }
 ]
 
