@@ -68,9 +68,49 @@ export default function Home() {
         // .eq('status', 'approved') // Temporarily commented out to show all artists
         .order('name')
 
+      console.log('Fetched artists data:', artistsData)
+      console.log('Artists error:', artistsError)
+
       if (artistsError) {
         console.error('Error fetching artists:', artistsError.message)
         setError(artistsError.message)
+        // Set fallback artists if database fetch fails
+        const fallbackArtists = [
+          {
+            id: 'fallback-1',
+            name: 'Douggert',
+            bio: 'Punk Electronica artist pushing boundaries',
+            image_url: 'https://images.unsplash.com/photo-1493225457124-a3eb161ffa5f?w=800&h=600&fit=crop',
+            spotify_url: '',
+            soundcloud_url: '',
+            website_url: '',
+            genre: 'Punk Electronica • EDM',
+            vote_percentage: 65
+          },
+          {
+            id: 'fallback-2',
+            name: 'Joey Hendrickson',
+            bio: 'Alternative acoustic songwriter',
+            image_url: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=800&h=600&fit=crop',
+            spotify_url: '',
+            soundcloud_url: '',
+            website_url: '',
+            genre: 'Alternative • Acoustic',
+            vote_percentage: 78
+          },
+          {
+            id: 'fallback-3',
+            name: 'Columbus Songwriters Association',
+            bio: 'Local songwriting collective',
+            image_url: 'https://images.unsplash.com/photo-1516280440614-37939bbacd81?w=800&h=600&fit=crop',
+            spotify_url: '',
+            soundcloud_url: '',
+            website_url: '',
+            genre: 'Pop • Acoustic',
+            vote_percentage: 45
+          }
+        ]
+        setArtists(fallbackArtists)
       } else {
         const artistsWithDummyData = artistsData.map((artist: Artist) => {
           let genre = 'Pop • Rock' // default
@@ -91,6 +131,47 @@ export default function Home() {
           }
         })
         setArtists(artistsWithDummyData)
+        
+        // If no artists found, use fallback
+        if (!artistsData || artistsData.length === 0) {
+          console.log('No artists found in database, using fallback')
+          const fallbackArtists = [
+            {
+              id: 'fallback-1',
+              name: 'Douggert',
+              bio: 'Punk Electronica artist pushing boundaries',
+              image_url: 'https://images.unsplash.com/photo-1493225457124-a3eb161ffa5f?w=800&h=600&fit=crop',
+              spotify_url: '',
+              soundcloud_url: '',
+              website_url: '',
+              genre: 'Punk Electronica • EDM',
+              vote_percentage: 65
+            },
+            {
+              id: 'fallback-2',
+              name: 'Joey Hendrickson',
+              bio: 'Alternative acoustic songwriter',
+              image_url: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=800&h=600&fit=crop',
+              spotify_url: '',
+              soundcloud_url: '',
+              website_url: '',
+              genre: 'Alternative • Acoustic',
+              vote_percentage: 78
+            },
+            {
+              id: 'fallback-3',
+              name: 'Columbus Songwriters Association',
+              bio: 'Local songwriting collective',
+              image_url: 'https://images.unsplash.com/photo-1516280440614-37939bbacd81?w=800&h=600&fit=crop',
+              spotify_url: '',
+              soundcloud_url: '',
+              website_url: '',
+              genre: 'Pop • Acoustic',
+              vote_percentage: 45
+            }
+          ]
+          setArtists(fallbackArtists)
+        }
       }
 
       // Fetch recent songs (temporarily showing all, not just approved)
