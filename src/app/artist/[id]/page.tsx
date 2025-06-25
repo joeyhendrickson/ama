@@ -801,7 +801,7 @@ export default function ArtistPage() {
                           />
                         </div>
                         <div className="flex items-center justify-between text-xs text-gray-500 mt-2">
-                          <span>Minimum Contribution: ${song.vote_price?.toFixed(2) || '1.00'}</span>
+                          <span>${song.vote_price?.toFixed(2) || '1.00'}</span>
                           <span>Total: ${(cartItem?.voteCount || 0) * (song.vote_price || 1.00)}</span>
                         </div>
                       </div>
