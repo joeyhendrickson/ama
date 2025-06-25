@@ -321,7 +321,7 @@ export default function Home() {
                     </div>
                     <div className="flex justify-between text-sm text-gray-600 mb-4">
                       <span>{artist.vote_percentage}%</span>
-                      <span>Vote now</span>
+                      <span>Support now</span>
                     </div>
 
                     <Link href={`/artist/${artist.id}`} className="block w-full">
