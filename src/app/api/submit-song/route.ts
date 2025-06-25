@@ -40,7 +40,7 @@ ${songFile ? `Song File: ${songFile.name} (${songFile.size} bytes)` : 'No song f
     `.trim()
 
     // Configure email transporter
-    const transporter = nodemailer.createTransporter({
+    const transporter = nodemailer.createTransport({
       host: process.env.SMTP_HOST || 'smtp.gmail.com',
       port: parseInt(process.env.SMTP_PORT || '587'),
       secure: false,

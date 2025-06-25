@@ -32,9 +32,7 @@ type Song = {
   status: string
 }
 
-type HomeProps = { howItWorksRef?: React.RefObject<HTMLElement> }
-
-export default function Home({ howItWorksRef }: HomeProps) {
+export default function Home() {
   const [artists, setArtists] = useState<Artist[]>([])
   const [recentSongs, setRecentSongs] = useState<Song[]>([])
   const [error, setError] = useState<string | null>(null)
