@@ -5,14 +5,24 @@ import { NextResponse } from 'next/server'
 import Stripe from 'stripe'
 import { supabase } from '@/lib/supabaseClient'
 
-const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!, {
-  apiVersion: '2025-05-28.basil',
-})
+// Create Stripe client only if we have the secret key
+const stripeSecretKey = process.env.STRIPE_SECRET_KEY || 'placeholder_key'
+const stripe = stripeSecretKey !== 'placeholder_key' 
+  ? new Stripe(stripeSecretKey, { apiVersion: '2025-05-28.basil' })
+  : null
 
 // Platform fee percentage (e.g., 10%)
 const PLATFORM_FEE_PERCENTAGE = 0.10
 
 export async function POST(req: Request) {
+  // If we don't have a valid Stripe client, return an error
+  if (!stripe) {
+    return NextResponse.json(
+      { error: 'Payment service not available' },
+      { status: 503 }
+    )
+  }
+
   const rawBody = await req.text()
   const headersList = await headers()
   const signature = headersList.get('stripe-signature') as string
