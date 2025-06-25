@@ -3,12 +3,22 @@ import { NextResponse } from 'next/server'
 import Stripe from 'stripe'
 import { supabase } from '@/lib/supabaseClient'
 
-const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!, {
-  apiVersion: '2025-05-28.basil',
-})
+// Create Stripe client only if we have the secret key
+const stripeSecretKey = process.env.STRIPE_SECRET_KEY || 'placeholder_key'
+const stripe = stripeSecretKey !== 'placeholder_key' 
+  ? new Stripe(stripeSecretKey, { apiVersion: '2025-05-28.basil' })
+  : null
 
 export async function POST(req: Request) {
   try {
+    // If we don't have a valid Stripe client, return an error
+    if (!stripe) {
+      return NextResponse.json(
+        { error: 'Payment service not available' },
+        { status: 503 }
+      )
+    }
+
     const { items, voiceCommentIds } = await req.json() // items: [{ songId, title, vote_price, quantity }]
 
     if (!items || items.length === 0) {
@@ -35,7 +45,7 @@ export async function POST(req: Request) {
 
     // Create a map of songId to artistId
     const songToArtistMap: { [key: string]: string } = {}
-    songs?.forEach(song => {
+    songs?.forEach((song: any) => {
       songToArtistMap[song.id] = song.artist_id
     })
 
