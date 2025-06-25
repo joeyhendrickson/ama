@@ -791,7 +791,7 @@ export default function ArtistPage() {
                       {/* Vote Progress */}
                       <div className="mb-6">
                         <div className="flex items-center justify-between text-sm text-gray-600 mb-2">
-                          <span>Votes: {totalVotes} / {song.vote_goal || 'Goal not set'}</span>
+                          <span>Contributions: {totalVotes} / {song.vote_goal || 'Goal not set'}</span>
                           <span className="font-bold">{votePercentage}%</span>
                         </div>
                         <div className="w-full bg-gray-200 rounded-full h-3 overflow-hidden">
@@ -801,7 +801,7 @@ export default function ArtistPage() {
                           />
                         </div>
                         <div className="flex items-center justify-between text-xs text-gray-500 mt-2">
-                          <span>Price per vote: ${song.vote_price?.toFixed(2) || '1.00'}</span>
+                          <span>Minimum Contribution: ${song.vote_price?.toFixed(2) || '1.00'}</span>
                           <span>Total: ${(cartItem?.voteCount || 0) * (song.vote_price || 1.00)}</span>
                         </div>
                       </div>
@@ -952,7 +952,7 @@ export default function ArtistPage() {
             <div className="bg-white border border-gray-200 p-8 rounded-2xl shadow-lg">
               <div className="text-center mb-6">
                 <h3 className="text-3xl font-bold text-gray-900 mb-2">
-                  🚀 Your Rocket Fuel
+                  🚀 Your Contributions
                 </h3>
                 <p className="text-gray-600 text-lg">
                   Ready to launch these songs?
@@ -964,7 +964,7 @@ export default function ArtistPage() {
                   <div key={item.songId} className="bg-orange-50 border border-orange-200 rounded-xl p-4 flex justify-between items-center">
                     <div className="flex-1 min-w-0">
                       <div className="text-gray-900 font-semibold truncate">{item.songTitle}</div>
-                      <div className="text-black text-sm">Votes: {item.voteCount}</div>
+                      <div className="text-black text-sm">Contributions: {item.voteCount}</div>
                     </div>
                     <div className="flex items-center gap-3 ml-4">
                       <div className="text-right">
@@ -1001,7 +1001,7 @@ export default function ArtistPage() {
                     Total: ${Array.isArray(cartItems) ? cartItems.reduce((sum, item) => sum + (item.voteCount * item.votePrice), 0).toFixed(2) : '0.00'}
                   </div>
                   <p className="text-gray-600">
-                    {Array.isArray(cartItems) ? cartItems.length : 0} song{Array.isArray(cartItems) && cartItems.length !== 1 ? 's' : ''} as rocket fuel
+                    {Array.isArray(cartItems) ? cartItems.length : 0} song{Array.isArray(cartItems) && cartItems.length !== 1 ? 's' : ''} supported
                   </p>
                 </div>
                 
@@ -1019,7 +1019,7 @@ export default function ArtistPage() {
                       d="M10.894 2.553a1 1 0 00-1.789 0l-7 14a1 1 0 001.169 1.409l5-1.429A1 1 0 009 15.571V11a1 1 0 112 0v4.571a1 1 0 00.725.962l5 1.428a1 1 0 001.17-1.408l-7-14z"
                     />
                   </svg>
-                  Proceed to Blast Off
+                  Proceed to Launch
                 </button>
               </div>
             </div>

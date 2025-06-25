@@ -205,13 +205,13 @@ export default function CartPage() {
       <div className="container mx-auto px-4 py-8">
         {/* Header */}
         <div className="text-center mb-12">
-          <h1 className="text-5xl font-bold text-gray-900 mb-4">🚀 Your Rocket Fuel</h1>
+          <h1 className="text-5xl font-bold text-gray-900 mb-4">🚀 Your Contributions</h1>
           <p className="text-gray-600 text-lg">Ready to launch these songs to the stars!</p>
         </div>
 
         {cartItems.length === 0 ? (
           <div className="bg-white border border-gray-200 p-8 rounded-2xl text-center shadow-lg">
-            <div className="text-gray-600 text-lg mb-4">Your rocket fuel tank is empty!</div>
+            <div className="text-gray-600 text-lg mb-4">Your contribution tank is empty!</div>
             <Link 
               href="/"
               className="inline-flex items-center px-6 py-3 bg-blue-600 hover:bg-blue-700 text-white font-semibold rounded-xl transition-all duration-300 shadow-lg"
@@ -224,7 +224,7 @@ export default function CartPage() {
               >
                 <path d="M10.75 4.75a.75.75 0 00-1.5 0v4.5h-4.5a.75.75 0 000 1.5h4.5v4.5a.75.75 0 001.5 0v-4.5h4.5a.75.75 0 000-1.5h-4.5v-4.5z" />
               </svg>
-              Add Some Fuel
+              Add Some Contributions
             </Link>
           </div>
         ) : (
@@ -244,7 +244,7 @@ export default function CartPage() {
                         {artist && (
                           <div className="text-gray-600 text-sm">by {artist.name}</div>
                         )}
-                        <div className="text-gray-600 text-sm">Votes: {item.voteCount}</div>
+                        <div className="text-gray-600 text-sm">Contributions: {item.voteCount}</div>
                       </div>
                       <div className="text-right ml-4">
                         <div className="text-blue-600 font-bold text-lg">
@@ -326,7 +326,7 @@ export default function CartPage() {
                     Total: ${totalPrice.toFixed(2)}
                   </div>
                   <div className="text-gray-600 text-sm">
-                    {cartItems.length} song{cartItems.length !== 1 ? 's' : ''} in your rocket
+                    {cartItems.length} song{cartItems.length !== 1 ? 's' : ''} supported
                   </div>
                   {cartItems.some(item => item.voiceComment) && (
                     <div className="text-green-600 text-sm mt-1">
