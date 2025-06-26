@@ -832,6 +832,11 @@ export default function ArtistPage() {
                         </button>
                       </div>
 
+                      {/* Download Access Info */}
+                      <div className="text-center text-xs text-gray-500 mb-4">
+                        💾 Contributions unlock song download access
+                      </div>
+
                       {/* Flip Hint */}
                       <div className="text-center text-gray-500 text-sm">
                         Click outside player to record voice comment
