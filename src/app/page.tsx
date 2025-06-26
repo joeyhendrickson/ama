@@ -250,7 +250,7 @@ export default function Home() {
       <div className={isModalOpen ? 'opacity-0 pointer-events-none select-none' : ''}>
         <section className="text-center py-20 sm:py-32 container mx-auto">
           <h1 className="text-5xl md:text-7xl font-bold text-gray-900 leading-tight">
-            Launch Unreleased Songs
+            Support Unreleased Songs
           </h1>
           <p className="text-lg md:text-xl text-gray-600 mt-6 max-w-2xl mx-auto">
             Support what artists just wrote. Provide feedback. Make contributions.
@@ -299,7 +299,7 @@ export default function Home() {
                       height: isColumbusCard ? '400px' : '650px'
                     }}
                   >
-                    <div className={`relative ${imageContainerHeight}`}>
+                    <Link href={`/artist/${artist.id}`} className={`relative ${imageContainerHeight} block`}>
                       <Image
                         src={artist.image_url}
                         alt={artist.name}
@@ -311,7 +311,7 @@ export default function Home() {
                         <h3 className="text-3xl font-bold">{artist.name}</h3>
                         <p className="text-sm text-gray-200">{artist.genre}</p>
                       </div>
-                    </div>
+                    </Link>
 
                     <div className="p-6">
                       <div className="w-full bg-gray-200 rounded-full h-3 mb-4">
@@ -329,7 +329,14 @@ export default function Home() {
                         <button 
                           className="w-full bg-black hover:bg-gray-800 text-white font-bold py-3 px-6 rounded-lg transition-all duration-300 transform hover:scale-105 shadow-lg"
                         >
-                          {artist.name === 'Joey Hendrickson' ? 'iPhone Recordings' : artist.name === 'Test 3' ? 'Provide Feedback' : index === 0 ? 'Collaborate' : index === 1 ? 'Support' : index === 2 ? 'Contribute' : 'Listen'}
+                          {artist.name === 'Douggert' ? 'Secret Tracks' :
+                           artist.name === 'Joey Hendrickson' ? 'Live Acoustic Recordings' :
+                           artist.name === 'Jack Folley' ? 'Never Released Single' :
+                           artist.name === 'Test 3' ? 'Provide Feedback' :
+                           index === 0 ? 'Collaborate' :
+                           index === 1 ? 'Support' :
+                           index === 2 ? 'Contribute' :
+                           'Listen'}
                         </button>
                       </Link>
                     </div>

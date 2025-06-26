@@ -244,16 +244,49 @@ export default function ArtistDashboard() {
 
     setUploading(true)
     try {
-      const formData = new FormData()
-      formData.append('songTitle', uploadFormData.title)
-      formData.append('genre', uploadFormData.genre)
-      formData.append('votePrice', uploadFormData.contributionAmount.toString())
-      formData.append('voteGoal', '100') // Default vote goal
-      formData.append('songFile', uploadFormData.songFile)
+      // Upload song file directly to Supabase Storage
+      const sanitizedSongFileName = uploadFormData.songFile.name.replace(/[^a-zA-Z0-9.\-]/g, '_');
+      const songFileName = `${Date.now()}-${sanitizedSongFileName}`;
+      const { data: songUploadData, error: songUploadError } = await supabase.storage
+        .from('songs')
+        .upload(songFileName, uploadFormData.songFile, {
+          contentType: uploadFormData.songFile.type,
+          cacheControl: '3600'
+        });
+      if (songUploadError) {
+        alert('Failed to upload song file: ' + songUploadError.message)
+        setUploading(false)
+        return
+      }
+      const { data: songUrlData } = supabase.storage
+        .from('songs')
+        .getPublicUrl(songFileName);
+      const songFileUrl = songUrlData.publicUrl;
 
+      // Get the current user's session for authentication
+      const { data: { session }, error: sessionError } = await supabase.auth.getSession()
+      if (sessionError || !session) {
+        alert('Authentication required. Please log in again.')
+        setUploading(false)
+        return
+      }
+
+      // Send metadata to API route
       const response = await fetch('/api/artist/upload-song', {
         method: 'POST',
-        body: formData
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${session.access_token}`
+        },
+        body: JSON.stringify({
+          songTitle: uploadFormData.title,
+          genre: uploadFormData.genre,
+          votePrice: uploadFormData.contributionAmount,
+          voteGoal: 100,
+          songFileUrl,
+          songFileSize: uploadFormData.songFile.size,
+          songFileType: uploadFormData.songFile.type
+        })
       })
 
       if (response.ok) {
@@ -973,7 +1006,6 @@ export default function ArtistDashboard() {
                     <p className="text-gray-600 mb-6">
                       Your Stripe account is connected and ready to receive payouts. You get paid immediately when fans purchase rocket fuel!
                     </p>
-                    
                     {revenue && revenue.pending_payouts > 0 && (
                       <div className="mb-6">
                         <div className="bg-orange-50 border border-orange-200 rounded-lg p-4 mb-4">
@@ -990,8 +1022,10 @@ export default function ArtistDashboard() {
                         </button>
                       </div>
                     )}
-                    
-                    <button className="bg-black hover:bg-gray-800 text-white px-6 py-3 rounded-lg transition-colors">
+                    <button
+                      className="bg-blue-600 hover:bg-blue-700 text-white px-6 py-3 rounded-lg transition-colors"
+                      onClick={() => window.open('https://dashboard.stripe.com/express', '_blank')}
+                    >
                       View Stripe Dashboard
                     </button>
                   </div>
@@ -1018,20 +1052,20 @@ export default function ArtistDashboard() {
                 <h3 className="text-lg font-bold text-gray-900 mb-4">How Immediate Payouts Work</h3>
                 <div className="space-y-3 text-gray-600">
                   <div className="flex items-start gap-3">
-                    <div className="w-6 h-6 bg-green-600 text-white rounded-full flex items-center justify-center text-sm font-bold mt-0.5">1</div>
-                    <p>Fans purchase rocket fuel for your songs through Stripe Checkout</p>
+                    <span className="font-bold text-lg mr-2">1</span>
+                    <span>Supporters make contributions to your songs through Stripe Checkout</span>
                   </div>
                   <div className="flex items-start gap-3">
-                    <div className="w-6 h-6 bg-green-600 text-white rounded-full flex items-center justify-center text-sm font-bold mt-0.5">2</div>
-                    <p>Our system immediately calculates your share (90% after platform fees)</p>
+                    <span className="font-bold text-lg mr-2">2</span>
+                    <span>The system immediately calculates your share (90% after platform fees)</span>
                   </div>
                   <div className="flex items-start gap-3">
-                    <div className="w-6 h-6 bg-green-600 text-white rounded-full flex items-center justify-center text-sm font-bold mt-0.5">3</div>
-                    <p>If your Stripe account is connected, funds are transferred to your account instantly</p>
+                    <span className="font-bold text-lg mr-2">3</span>
+                    <span>If your Stripe account is connected, funds are transferred to your account</span>
                   </div>
                   <div className="flex items-start gap-3">
-                    <div className="w-6 h-6 bg-green-600 text-white rounded-full flex items-center justify-center text-sm font-bold mt-0.5">4</div>
-                    <p>If not connected, funds are held until you connect your Stripe account</p>
+                    <span className="font-bold text-lg mr-2">4</span>
+                    <span>If not connected, funds are held until you connect your Stripe account</span>
                   </div>
                 </div>
               </div>

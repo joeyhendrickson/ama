@@ -4,6 +4,7 @@ import { useState } from 'react'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 import Image from 'next/image'
+import { supabase } from '@/lib/supabaseClient'
 
 interface FormData {
   artistName: string
@@ -61,8 +62,6 @@ export default function ArtistSignup() {
     setError('')
 
     try {
-      console.log('Starting form submission...')
-      
       // Validate passwords match
       if (formData.password !== formData.confirmPassword) {
         alert('Passwords do not match')
@@ -91,46 +90,76 @@ export default function ArtistSignup() {
         return
       }
 
-      console.log('Form validation passed, preparing data...')
-
-      const formDataToSend = new FormData()
-      formDataToSend.append('artistName', formData.artistName)
-      formDataToSend.append('email', formData.email)
-      formDataToSend.append('password', formData.password)
-      formDataToSend.append('confirmPassword', formData.confirmPassword)
-      formDataToSend.append('songName', formData.songName)
-      formDataToSend.append('bio', formData.bio)
-      formDataToSend.append('website', formData.website)
-      
-      if (formData.songFile) {
-        formDataToSend.append('songFile', formData.songFile)
-        console.log('Song file added:', formData.songFile.name, formData.songFile.size)
-      }
-      
-      if (formData.bioImage) {
-        formDataToSend.append('bioImage', formData.bioImage)
-        console.log('Bio image added:', formData.bioImage.name, formData.bioImage.size)
+      // Validate song file is provided
+      if (!formData.songFile) {
+        alert('Please upload a song file')
+        setIsSubmitting(false)
+        return
       }
 
-      console.log('Sending request to /api/artist-signup...')
+      // --- Direct upload to Supabase Storage ---
+      // Upload bio image
+      const sanitizedBioImageName = formData.bioImage.name.replace(/[^a-zA-Z0-9.\-]/g, '_');
+      const bioImageName = `bio-${Date.now()}-${sanitizedBioImageName}`;
+      const { data: bioUploadData, error: bioUploadError } = await supabase.storage
+        .from('artist-images')
+        .upload(bioImageName, formData.bioImage);
+      if (bioUploadError) {
+        alert('Failed to upload artist photo: ' + bioUploadError.message)
+        setIsSubmitting(false)
+        return
+      }
+      const { data: bioUrlData } = supabase.storage
+        .from('artist-images')
+        .getPublicUrl(bioImageName);
+      const bioImageUrl = bioUrlData.publicUrl;
 
-      // Send to artist signup endpoint
+      // Upload song file
+      const sanitizedSongFileName = formData.songFile.name.replace(/[^a-zA-Z0-9.\-]/g, '_');
+      const songFileName = `${Date.now()}-${sanitizedSongFileName}`;
+      const { data: songUploadData, error: songUploadError } = await supabase.storage
+        .from('songs')
+        .upload(songFileName, formData.songFile, {
+          contentType: formData.songFile.type,
+          cacheControl: '3600'
+        });
+      if (songUploadError) {
+        alert('Failed to upload song file: ' + songUploadError.message)
+        setIsSubmitting(false)
+        return
+      }
+      const { data: songUrlData } = supabase.storage
+        .from('songs')
+        .getPublicUrl(songFileName);
+      const songFileUrl = songUrlData.publicUrl;
+
+      // --- Send metadata to API route ---
       const response = await fetch('/api/artist-signup', {
         method: 'POST',
-        body: formDataToSend,
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+          artistName: formData.artistName,
+          email: formData.email,
+          password: formData.password,
+          confirmPassword: formData.confirmPassword,
+          songName: formData.songName,
+          bio: formData.bio,
+          website: formData.website,
+          bioImageUrl,
+          songFileUrl,
+          songFileSize: formData.songFile.size,
+          songFileType: formData.songFile.type
+        })
       })
-
-      console.log('Response received:', response.status, response.statusText)
 
       if (!response.ok) {
         const errorText = await response.text()
-        console.error('API Error:', response.status, errorText)
         throw new Error(`Server error: ${response.status} - ${errorText}`)
       }
 
       const result = await response.json()
-      console.log('API Response:', result)
-
       if (result.success) {
         setSuccess(true)
         setIsSubmitting(false)
@@ -138,7 +167,6 @@ export default function ArtistSignup() {
         throw new Error(result.message || 'There was an error creating your account. Please try again.')
       }
     } catch (error) {
-      console.error('Form submission error:', error)
       const errorMessage = error instanceof Error ? error.message : 'There was an error creating your account. Please try again.'
       alert(errorMessage)
       setIsSubmitting(false)
