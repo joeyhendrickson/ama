@@ -152,7 +152,7 @@ export default function ArtistSignup() {
           <div className="text-center mb-12">
             <h1 className="text-3xl md:text-4xl font-bold mb-6 text-center">Create Your Artist Account</h1>
             <p className="text-lg text-gray-700 mb-8 text-center">
-              Before you distribute your songs, inspire contributions and feedback for your unfinished songs or unreleased music! Upload your first song. Use the Music Manager chat to create social posts to promote your artist page. Get contributions before streaming!
+              Upload your first song! Activate and sign-in to your artist dashboard to manage the songs on your artist page, hear the private feedback of visitors through voice comments, and access your paid contributions.
             </p>
           </div>
 
