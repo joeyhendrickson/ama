@@ -308,10 +308,18 @@ export default function ArtistDashboard() {
 
     setUpdating(true)
     try {
+      // Get the current user's session
+      const { data: { session }, error: sessionError } = await supabase.auth.getSession()
+      if (sessionError || !session) {
+        alert('Authentication required. Please log in again.')
+        return
+      }
+
       const response = await fetch('/api/artist/update-song', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
+          'Authorization': `Bearer ${session.access_token}`
         },
         body: JSON.stringify({
           songId: editingSong.id,
@@ -334,7 +342,8 @@ export default function ArtistDashboard() {
           alert(`Update failed: ${result.message}`)
         }
       } else {
-        alert('Update failed. Please try again.')
+        const errorData = await response.json()
+        alert(`Update failed: ${errorData.message || 'Please try again.'}`)
       }
     } catch (error) {
       console.error('Update error:', error)
