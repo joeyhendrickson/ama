@@ -833,9 +833,9 @@ export default function ArtistPage() {
                       </div>
 
                       {/* Download Access Info */}
-                      <div className="text-center text-xs text-gray-500 mb-4">
+                      {/* <div className="text-center text-xs text-gray-500 mb-4">
                         Support to unlock song download
-                      </div>
+                      </div> */}
 
                       {/* Flip Hint */}
                       <div className="text-center text-gray-500 text-sm">
