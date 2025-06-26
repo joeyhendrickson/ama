@@ -103,7 +103,7 @@ export async function POST(request: NextRequest) {
       bioImageUrl = bioUrlData.publicUrl;
     }
 
-    // Validate file type (allow MP3, WAV, M4A, AIFF)
+    // Enhanced audio file validation
     const allowedTypes = [
       'audio/mpeg', // mp3
       'audio/wav',
@@ -112,27 +112,91 @@ export async function POST(request: NextRequest) {
       'audio/x-m4a',
       'audio/aiff',
       'audio/x-aiff',
+      'audio/flac',
+      'audio/ogg'
     ];
-    const allowedExtensions = ['mp3', 'wav', 'm4a', 'aiff', 'aif'];
+    const allowedExtensions = ['mp3', 'wav', 'm4a', 'aiff', 'aif', 'flac', 'ogg'];
     const fileExtension = songFile.name.split('.').pop()?.toLowerCase();
+    
     if (!allowedTypes.includes(songFile.type) && !allowedExtensions.includes(fileExtension || '')) {
       return NextResponse.json(
-        { success: false, message: 'File must be MP3, WAV, M4A, or AIFF format' },
+        { success: false, message: 'File must be MP3, WAV, M4A, AIFF, AIF, FLAC, or OGG format' },
         { status: 400 }
       )
     }
 
-    // Sanitize and upload song file
+    // Check for minimum file size (prevent empty or corrupted files)
+    if (songFile.size < 1024) { // Less than 1KB
+      return NextResponse.json(
+        { success: false, message: 'Audio file appears to be empty or corrupted' },
+        { status: 400 }
+      )
+    }
+
+    // Check for maximum file size (50MB)
+    if (songFile.size > 50 * 1024 * 1024) {
+      return NextResponse.json(
+        { success: false, message: 'Audio file size must be less than 50MB' },
+        { status: 400 }
+      )
+    }
+
+    // Calculate file hash for integrity checking
+    const fileBuffer = await songFile.arrayBuffer()
+    const fileHash = await calculateFileHash(fileBuffer)
+    
+    console.log('Audio file validation passed:', {
+      name: songFile.name,
+      size: songFile.size,
+      type: songFile.type,
+      extension: fileExtension,
+      hash: fileHash
+    })
+
+    // Sanitize and upload song file with integrity verification
     const sanitizedSongFileName = songFile.name.replace(/[^a-zA-Z0-9.\-]/g, '_');
-    const songFileName = `${Date.now()}-${sanitizedSongFileName}`;
+    const songFileName = `${Date.now()}-${sanitizedSongFileName}-${fileHash.substring(0, 8)}.${fileExtension}`;
+    
     const { data: uploadData, error: uploadError } = await supabase.storage
       .from('songs')
-      .upload(songFileName, songFile)
+      .upload(songFileName, fileBuffer, {
+        contentType: songFile.type,
+        cacheControl: '3600'
+      })
 
     if (uploadError) {
       console.error('Upload error:', uploadError)
       return NextResponse.json(
-        { success: false, message: 'Failed to upload song file' },
+        { success: false, message: 'Failed to upload song file: ' + uploadError.message },
+        { status: 500 }
+      )
+    }
+
+    // Verify upload by downloading and checking hash
+    const { data: verifyData, error: verifyError } = await supabase.storage
+      .from('songs')
+      .download(songFileName)
+
+    if (verifyError) {
+      console.error('Verification download error:', verifyError)
+      // Try to clean up the failed upload
+      await supabase.storage.from('songs').remove([songFileName])
+      return NextResponse.json(
+        { success: false, message: 'Song file upload verification failed' },
+        { status: 500 }
+      )
+    }
+
+    // Verify file integrity
+    const verifyBuffer = await verifyData.arrayBuffer()
+    const verifyHash = await calculateFileHash(verifyBuffer)
+    
+    if (fileHash !== verifyHash) {
+      console.error('File integrity check failed:', { original: fileHash, uploaded: verifyHash })
+      // Clean up the corrupted upload
+      await supabase.storage.from('songs').remove([songFileName])
+      return NextResponse.json(
+        { success: false, message: 'Audio file corruption detected during upload. Please try again.' },
         { status: 500 }
       )
     }
@@ -141,6 +205,14 @@ export async function POST(request: NextRequest) {
     const { data: urlData } = supabase.storage
       .from('songs')
       .getPublicUrl(songFileName)
+
+    console.log('Audio file uploaded and verified successfully:', {
+      fileName: songFileName,
+      publicUrl: urlData.publicUrl,
+      originalName: songFile.name,
+      fileSize: songFile.size,
+      fileHash: fileHash
+    })
 
     // Create artist record
     const { data: artistData, error: artistError } = await supabase
@@ -161,19 +233,24 @@ export async function POST(request: NextRequest) {
 
     if (artistError) {
       console.error('Artist creation error:', artistError)
+      // Clean up the uploaded file if artist creation fails
+      await supabase.storage.from('songs').remove([songFileName])
       return NextResponse.json(
         { success: false, message: 'Failed to create artist profile' },
         { status: 500 }
       )
     }
 
-    // Create song record as private song
+    // Create song record as private song with enhanced metadata
     const { data: songData, error: songError } = await supabase
       .from('songs')
       .insert({
         title: songName,
         artist_id: authData.user.id,
         audio_url: urlData.publicUrl,
+        file_url: urlData.publicUrl, // Also set file_url for consistency
+        file_size: songFile.size,
+        file_hash: fileHash, // Store hash for future integrity checks
         vote_count: 0,
         vote_goal: 100,
         status: 'private', // Private song, not public yet
@@ -185,92 +262,40 @@ export async function POST(request: NextRequest) {
 
     if (songError) {
       console.error('Song creation error:', songError)
+      // Clean up the uploaded file if song creation fails
+      await supabase.storage.from('songs').remove([songFileName])
       return NextResponse.json(
         { success: false, message: 'Failed to create song record' },
         { status: 500 }
       )
     }
 
-    // Send custom confirmation email
-    try {
-      console.log('Attempting to send custom confirmation email to:', email)
-      
-      // Check if email environment variables are set
-      if (!process.env.EMAIL_USER || !process.env.EMAIL_PASS) {
-        console.warn('Email environment variables not set - skipping custom email')
-      } else {
-        const emailResponse = await fetch(`${request.nextUrl.origin}/api/notify-artist`, {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify({
-            artistId: authData.user.id,
-            artistName: artistName,
-            email: email,
-            type: 'signup_confirmation'
-          })
-        })
-
-        if (!emailResponse.ok) {
-          const errorText = await emailResponse.text()
-          console.error('Failed to send confirmation email:', emailResponse.status, errorText)
-        } else {
-          console.log('Custom confirmation email sent successfully')
-        }
-      }
-    } catch (emailError) {
-      console.error('Email error:', emailError)
-    }
-
-    // Log admin analytics for signup attempt
-    try {
-      const analyticsResponse = await fetch(`${request.nextUrl.origin}/api/analytics/track-signup`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          artistId: authData.user.id,
-          artistName: artistName,
-          email: email,
-          songName: songName,
-          signupStatus: 'success',
-          emailSent: !!(process.env.EMAIL_USER && process.env.EMAIL_PASS),
-          timestamp: new Date().toISOString()
-        })
-      })
-
-      if (!analyticsResponse.ok) {
-        console.error('Failed to log signup analytics')
-      } else {
-        console.log('Signup analytics logged successfully')
-      }
-    } catch (analyticsError) {
-      console.error('Analytics error:', analyticsError)
-    }
-
-    // Log Supabase auth status
-    console.log('Supabase auth result:', {
-      user: authData.user?.id,
-      session: authData.session ? 'Session created' : 'No session',
-      emailConfirmed: authData.user?.email_confirmed_at ? 'Email confirmed' : 'Email not confirmed'
+    console.log('Artist signup completed successfully:', {
+      artistId: authData.user.id,
+      songId: songData.id,
+      fileHash: fileHash
     })
 
     return NextResponse.json({
       success: true,
-      message: 'Artist account created successfully! Please check your email to verify your account.',
-      artistId: authData.user.id,
-      songId: songData.id,
-      emailSent: true,
-      note: 'Check your email (including spam folder) for the confirmation link from Supabase'
+      message: 'Artist account created successfully! Please check your email to confirm your account. You can then login to access your dashboard.',
+      artist: artistData,
+      song: songData,
+      fileHash: fileHash
     })
 
   } catch (error) {
     console.error('Artist signup error:', error)
     return NextResponse.json(
-      { success: false, message: 'An unexpected error occurred' },
+      { success: false, message: 'Internal server error: ' + (error instanceof Error ? error.message : 'Unknown error') },
       { status: 500 }
     )
   }
+}
+
+// Helper function to calculate file hash
+async function calculateFileHash(buffer: ArrayBuffer): Promise<string> {
+  const hashBuffer = await crypto.subtle.digest('SHA-256', buffer)
+  const hashArray = Array.from(new Uint8Array(hashBuffer))
+  return hashArray.map(b => b.toString(16).padStart(2, '0')).join('')
 } 
