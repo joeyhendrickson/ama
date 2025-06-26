@@ -16,7 +16,7 @@ export async function POST(request: NextRequest) {
     const bioImage = formData.get('bioImage') as File
 
     // Validation
-    if (!artistName || !email || !password || !songName || !bio || !songFile) {
+    if (!artistName || !email || !password || !songName || !bio || !songFile || !bioImage) {
       return NextResponse.json(
         { success: false, message: 'Missing required fields' },
         { status: 400 }
@@ -79,29 +79,26 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    // Only upload bio image if provided
-    let bioImageUrl = null;
-    if (bioImage) {
-      const sanitizedBioImageName = bioImage.name.replace(/[^a-zA-Z0-9.\-]/g, '_');
-      const bioImageName = `bio-${Date.now()}-${sanitizedBioImageName}`;
-      const { data: bioUploadData, error: bioUploadError } = await supabase.storage
-        .from('artist-images')
-        .upload(bioImageName, bioImage);
+    // Upload bio image (now required)
+    const sanitizedBioImageName = bioImage.name.replace(/[^a-zA-Z0-9.\-]/g, '_');
+    const bioImageName = `bio-${Date.now()}-${sanitizedBioImageName}`;
+    const { data: bioUploadData, error: bioUploadError } = await supabase.storage
+      .from('artist-images')
+      .upload(bioImageName, bioImage);
 
-      if (bioUploadError) {
-        console.error('Bio image upload error:', bioUploadError)
-        return NextResponse.json(
-          { success: false, message: 'Failed to upload artist photo' },
-          { status: 500 }
-        )
-      }
-
-      // Get the public URL for the bio image
-      const { data: bioUrlData } = supabase.storage
-        .from('artist-images')
-        .getPublicUrl(bioImageName);
-      bioImageUrl = bioUrlData.publicUrl;
+    if (bioUploadError) {
+      console.error('Bio image upload error:', bioUploadError)
+      return NextResponse.json(
+        { success: false, message: 'Failed to upload artist photo' },
+        { status: 500 }
+      )
     }
+
+    // Get the public URL for the bio image
+    const { data: bioUrlData } = supabase.storage
+      .from('artist-images')
+      .getPublicUrl(bioImageName);
+    const bioImageUrl = bioUrlData.publicUrl;
 
     // Enhanced audio file validation
     const allowedTypes = [

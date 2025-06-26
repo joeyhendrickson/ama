@@ -84,6 +84,13 @@ export default function ArtistSignup() {
         return
       }
 
+      // Validate bio image is provided
+      if (!formData.bioImage) {
+        alert('Please upload a bio image')
+        setIsSubmitting(false)
+        return
+      }
+
       console.log('Form validation passed, preparing data...')
 
       const formDataToSend = new FormData()
@@ -265,13 +272,14 @@ export default function ArtistSignup() {
               {/* Bio Image Upload */}
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Bio Image (Optional)
+                  Bio Image *
                 </label>
                 <input
                   type="file"
                   name="bioImage"
                   onChange={handleFileChange}
                   accept="image/*"
+                  required
                   className="w-full px-4 py-3 bg-gray-50 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#E55A2B] focus:border-[#E55A2B] text-gray-700 file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-sm file:font-semibold file:bg-[#E55A2B] file:text-white hover:file:bg-[#D14A1B]"
                 />
                 <p className="text-sm text-gray-500 mt-1">
