@@ -952,10 +952,10 @@ export default function ArtistPage() {
             <div className="bg-white border border-gray-200 p-8 rounded-2xl shadow-lg">
               <div className="text-center mb-6">
                 <h3 className="text-3xl font-bold text-gray-900 mb-2">
-                  🚀 Your Contributions
+                  💰 Your Contributions
                 </h3>
                 <p className="text-gray-600 text-lg">
-                  Ready to launch these songs?
+                  Ready to support these songs?
                 </p>
               </div>
               
@@ -1032,10 +1032,10 @@ export default function ArtistPage() {
             <div key={`payment-modal-${song.id}`} className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
               <div className="bg-white border border-gray-200 rounded-2xl max-w-md w-full p-6 shadow-xl">
                 <div className="text-center mb-6">
-                  <div className="text-4xl mb-4">🚀</div>
-                  <h3 className="text-xl font-bold text-gray-900 mb-2">Rocket Fuel Required!</h3>
+                  <div className="text-4xl mb-4">💬</div>
+                  <h3 className="text-xl font-bold text-gray-900 mb-2">Contribution Required!</h3>
                   <p className="text-gray-600 text-sm">
-                    To send your voice comment about &quot;{song.title}&quot; to the artist, just add it to your rocket fuel and proceed to blast off before you LaunchThatSong.com!
+                    To send your voice comment about &quot;{song.title}&quot; to the artist, please add a contribution to support this song.
                   </p>
                 </div>
                 
@@ -1054,7 +1054,7 @@ export default function ArtistPage() {
                         d="M10.894 2.553a1 1 0 00-1.789 0l-7 14a1 1 0 001.169 1.409l5-1.429A1 1 0 009 15.571V11a1 1 0 112 0v4.571a1 1 0 00.725.962l5 1.428a1 1 0 001.17-1.408l-7-14z"
                       />
                     </svg>
-                    Add to Rocket Fuel
+                    Add Contribution
                   </button>
                   <button
                     onClick={() => handleMaybeLater(song.id)}
