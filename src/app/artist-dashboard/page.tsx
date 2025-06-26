@@ -315,6 +315,14 @@ export default function ArtistDashboard() {
         return
       }
 
+      console.log('Submitting edit with data:', {
+        songId: editingSong.id,
+        title: editFormData.title,
+        genre: editFormData.genre,
+        votePrice: editFormData.contributionAmount,
+        voteGoal: editFormData.voteGoal
+      })
+
       const response = await fetch('/api/artist/update-song', {
         method: 'POST',
         headers: {
@@ -330,8 +338,11 @@ export default function ArtistDashboard() {
         })
       })
 
+      console.log('Response status:', response.status)
+
       if (response.ok) {
         const result = await response.json()
+        console.log('Success result:', result)
         if (result.success) {
           alert('Song updated successfully!')
           setShowEditModal(false)
@@ -343,6 +354,7 @@ export default function ArtistDashboard() {
         }
       } else {
         const errorData = await response.json()
+        console.error('Error response:', errorData)
         alert(`Update failed: ${errorData.message || 'Please try again.'}`)
       }
     } catch (error) {

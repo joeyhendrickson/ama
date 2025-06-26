@@ -42,17 +42,13 @@ export async function POST(request: NextRequest) {
 
     const accessToken = authHeader.replace('Bearer ', '')
 
-    // Create a Supabase client with the user's access token
-    const supabase = createClient(supabaseUrl, supabaseServiceKey, {
-      auth: {
-        autoRefreshToken: false,
-        persistSession: false
-      }
-    })
+    // Create a Supabase client with service role key
+    const supabase = createClient(supabaseUrl, supabaseServiceKey)
 
-    // Get current user using the access token
+    // Verify the access token and get user info
     const { data: { user }, error: userError } = await supabase.auth.getUser(accessToken)
     if (userError || !user) {
+      console.error('User authentication error:', userError)
       return NextResponse.json(
         { success: false, message: 'Authentication required' },
         { status: 401 }
@@ -67,6 +63,7 @@ export async function POST(request: NextRequest) {
       .single()
 
     if (artistError || !artistData) {
+      console.error('Artist lookup error:', artistError)
       return NextResponse.json(
         { success: false, message: 'Artist profile not found' },
         { status: 404 }
@@ -83,6 +80,7 @@ export async function POST(request: NextRequest) {
       .single()
 
     if (songError || !songData) {
+      console.error('Song lookup error:', songError)
       return NextResponse.json(
         { success: false, message: 'Song not found' },
         { status: 404 }
