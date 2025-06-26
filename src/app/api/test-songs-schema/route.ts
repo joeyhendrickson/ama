@@ -1,45 +1,46 @@
-import { NextResponse } from 'next/server'
+import { NextRequest, NextResponse } from 'next/server'
 import { supabase } from '@/lib/supabaseClient'
 
-export async function GET() {
+export async function GET(request: NextRequest) {
   try {
-    // Try to get the table structure by attempting a simple query
-    const { data, error } = await supabase
-      .from('songs')
-      .select('*')
-      .limit(1)
+    // Get all artists with "Douggert" in the name
+    const { data: artists, error: artistsError } = await supabase
+      .from('artists')
+      .select('id, name, email, status, created_at')
+      .ilike('name', '%Douggert%')
+      .order('created_at', { ascending: false })
 
-    if (error) {
-      return NextResponse.json({
-        success: false,
-        error: error.message,
-        code: error.code,
-        details: error.details,
-        hint: error.hint
-      })
+    if (artistsError) {
+      return NextResponse.json({ error: 'Error fetching artists', details: artistsError })
     }
 
-    // Try to insert a minimal test record to see what fields are required
-    const testInsert = await supabase
+    // Get all songs with "Killswitch" in the title
+    const { data: songs, error: songsError } = await supabase
       .from('songs')
-      .insert({
-        title: 'Test Song',
-        artist_id: '00000000-0000-0000-0000-000000000000' // Dummy UUID
-      })
-      .select()
+      .select('id, title, artist_id, audio_url, file_url, file_size, status, created_at')
+      .ilike('title', '%Killswitch%')
+      .order('created_at', { ascending: false })
+
+    if (songsError) {
+      return NextResponse.json({ error: 'Error fetching songs', details: songsError })
+    }
+
+    // Get all songs for Douggert artists
+    const douggertSongIds = songs.map(s => s.artist_id)
+    const { data: allDouggertSongs, error: allSongsError } = await supabase
+      .from('songs')
+      .select('id, title, artist_id, audio_url, file_url, file_size, status, created_at')
+      .in('artist_id', douggertSongIds)
+      .order('created_at', { ascending: false })
 
     return NextResponse.json({
       success: true,
-      message: 'Songs table structure check',
-      existingData: data,
-      testInsert: testInsert,
-      existingFields: data && data.length > 0 ? Object.keys(data[0]) : []
+      artists: artists || [],
+      killswitchSongs: songs || [],
+      allDouggertSongs: allDouggertSongs || []
     })
 
-  } catch (error) {
-    return NextResponse.json({
-      success: false,
-      error: error instanceof Error ? error.message : 'Unknown error'
-    })
+  } catch (e) {
+    return NextResponse.json({ error: 'Unexpected error', details: String(e) })
   }
 } 
