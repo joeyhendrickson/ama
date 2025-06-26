@@ -957,7 +957,7 @@ export default function ArtistPage() {
             <div className="bg-white border border-gray-200 p-8 rounded-2xl shadow-lg">
               <div className="text-center mb-6">
                 <h3 className="text-3xl font-bold text-gray-900 mb-2">
-                  💰 Your Contributions
+                  🚀 Your Contributions
                 </h3>
                 <p className="text-gray-600 text-lg">
                   Ready to support these songs?
