@@ -203,7 +203,10 @@ export default function ArtistDashboard() {
     try {
       const { error } = await supabase
         .from('songs')
-        .update({ submitted_for_approval: true })
+        .update({ 
+          submitted_for_approval: true,
+          status: 'pending'
+        })
         .eq('id', songId)
 
       if (error) {

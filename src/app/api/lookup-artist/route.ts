@@ -1,37 +1,33 @@
-import { NextResponse } from 'next/server'
+import { NextRequest, NextResponse } from 'next/server'
 import { supabase } from '@/lib/supabaseClient'
 
-export async function GET(req: Request) {
+export async function GET(request: NextRequest) {
   try {
-    const { searchParams } = new URL(req.url)
-    const name = searchParams.get('name')
+    const { searchParams } = new URL(request.url)
+    const searchTerm = searchParams.get('search')
 
-    console.log('Received name:', name)
+    let query = supabase
+      .from('artists')
+      .select('id, name, email, status, created_at')
 
-    if (!name) {
-      return NextResponse.json({ error: 'Missing name' }, { status: 400 })
+    if (searchTerm) {
+      query = query.ilike('name', `%${searchTerm}%`)
     }
 
-    const { data, error } = await supabase
-      .from('artists')
-      .select('id, email')
-      .eq('name', name)
-      .single()
+    const { data: artists, error } = await query
+      .order('created_at', { ascending: false })
 
     if (error) {
-      console.error('Supabase error:', error)
-      return NextResponse.json({ error: 'Supabase query failed' }, { status: 500 })
+      return NextResponse.json({ error: 'Error fetching artists', details: error })
     }
 
-    if (!data) {
-      console.warn('No artist found for:', name)
-      return NextResponse.json({ error: 'Artist not found' }, { status: 404 })
-    }
+    return NextResponse.json({
+      success: true,
+      count: artists.length,
+      artists: artists
+    })
 
-    console.log('Artist found:', data)
-    return NextResponse.json(data)
-  } catch (err) {
-    console.error('Unexpected error in lookup-artist route:', err)
-    return NextResponse.json({ error: 'Server error' }, { status: 500 })
+  } catch (e) {
+    return NextResponse.json({ error: 'Unexpected error', details: String(e) })
   }
 }
