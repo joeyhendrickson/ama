@@ -54,6 +54,7 @@ const ArtistHowItWorks = () => {
   const { setIsChatbotOpen, setChatbotMode } = useChatbot()
 
   const handleAIMusicManagerClick = () => {
+    console.log('AI Music Manager card clicked!')
     setIsChatbotOpen(true)
     setChatbotMode('manager')
   }
