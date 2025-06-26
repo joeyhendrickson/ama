@@ -52,6 +52,7 @@ const features = [
 
 const ArtistHowItWorks = () => {
   const { setIsChatbotOpen, setChatbotMode } = useChatbot()
+  console.log('ArtistHowItWorks mounted', { setIsChatbotOpen, setChatbotMode })
 
   const handleAIMusicManagerClick = () => {
     console.log('AI Music Manager card clicked!')
