@@ -99,6 +99,25 @@ export async function POST(request: NextRequest) {
       .from('artist-images')
       .getPublicUrl(bioImageName)
 
+    // Validate file type (allow MP3, WAV, M4A, AIFF)
+    const allowedTypes = [
+      'audio/mpeg', // mp3
+      'audio/wav',
+      'audio/x-wav',
+      'audio/mp4', // m4a
+      'audio/x-m4a',
+      'audio/aiff',
+      'audio/x-aiff',
+    ];
+    const allowedExtensions = ['mp3', 'wav', 'm4a', 'aiff'];
+    const fileExtension = songFile.name.split('.').pop()?.toLowerCase();
+    if (!allowedTypes.includes(songFile.type) && !allowedExtensions.includes(fileExtension || '')) {
+      return NextResponse.json(
+        { success: false, message: 'File must be MP3, WAV, M4A, or AIFF format' },
+        { status: 400 }
+      )
+    }
+
     // Sanitize and upload song file
     const sanitizedSongFileName = songFile.name.replace(/[^a-zA-Z0-9.\-]/g, '_');
     const songFileName = `${Date.now()}-${sanitizedSongFileName}`;
