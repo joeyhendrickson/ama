@@ -109,7 +109,7 @@ export async function POST(request: NextRequest) {
       'audio/aiff',
       'audio/x-aiff',
     ];
-    const allowedExtensions = ['mp3', 'wav', 'm4a', 'aiff'];
+    const allowedExtensions = ['mp3', 'wav', 'm4a', 'aiff', 'aif'];
     const fileExtension = songFile.name.split('.').pop()?.toLowerCase();
     if (!allowedTypes.includes(songFile.type) && !allowedExtensions.includes(fileExtension || '')) {
       return NextResponse.json(

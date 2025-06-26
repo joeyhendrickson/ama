@@ -247,13 +247,13 @@ export default function ArtistSignup() {
               {/* Song File Upload */}
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Song File (MP3, WAV, M4A, or AIFF) *
+                  Song File (MP3, WAV, M4A, AIFF, or AIF) *
                 </label>
                 <input
                   type="file"
                   name="songFile"
                   onChange={handleFileChange}
-                  accept=".mp3,.wav,.m4a,.aiff"
+                  accept=".mp3,.wav,.m4a,.aiff,.aif"
                   required
                   className="w-full px-4 py-3 bg-gray-50 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#E55A2B] focus:border-[#E55A2B] text-gray-700 file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-sm file:font-semibold file:bg-[#E55A2B] file:text-white hover:file:bg-[#D14A1B]"
                 />
