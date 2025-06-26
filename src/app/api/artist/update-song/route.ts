@@ -1,10 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { createClient } from '@supabase/supabase-js'
-
-const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!
-const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY!
-
-const supabase = createClient(supabaseUrl, supabaseServiceKey)
+import { supabase } from '@/lib/supabaseClient'
 
 export async function POST(request: NextRequest) {
   try {
@@ -30,6 +25,52 @@ export async function POST(request: NextRequest) {
       return NextResponse.json(
         { success: false, message: 'Contribution goal must be at least 1' },
         { status: 400 }
+      )
+    }
+
+    // Get current user
+    const { data: { user }, error: userError } = await supabase.auth.getUser()
+    if (userError || !user) {
+      return NextResponse.json(
+        { success: false, message: 'Authentication required' },
+        { status: 401 }
+      )
+    }
+
+    // Get artist ID
+    const { data: artistData, error: artistError } = await supabase
+      .from('artists')
+      .select('id')
+      .eq('email', user.email)
+      .single()
+
+    if (artistError || !artistData) {
+      return NextResponse.json(
+        { success: false, message: 'Artist profile not found' },
+        { status: 404 }
+      )
+    }
+
+    const artistId = artistData.id
+
+    // Verify the song belongs to this artist
+    const { data: songData, error: songError } = await supabase
+      .from('songs')
+      .select('artist_id')
+      .eq('id', songId)
+      .single()
+
+    if (songError || !songData) {
+      return NextResponse.json(
+        { success: false, message: 'Song not found' },
+        { status: 404 }
+      )
+    }
+
+    if (songData.artist_id !== artistId) {
+      return NextResponse.json(
+        { success: false, message: 'Unauthorized to edit this song' },
+        { status: 403 }
       )
     }
 
