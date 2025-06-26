@@ -34,6 +34,9 @@ const Chatbot = ({
     }
   }, [isOpen, mode, messages.length])
 
+  // Debug log
+  console.log('Chatbot rendered', { isOpen, mode })
+
   const handleSendMessage = async () => {
     if (!inputValue.trim()) return
     const userMessage = { id: Date.now().toString(), text: inputValue, isUser: true }
