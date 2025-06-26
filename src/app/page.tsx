@@ -7,7 +7,6 @@ import { supabase } from '@/lib/supabaseClient'
 import Navbar from '@/components/Navbar'
 import { useCart } from '@/context/CartContext'
 import ArtistHowItWorks from '@/components/ArtistHowItWorks'
-import Chatbot from '@/components/Chatbot'
 
 type Artist = {
   id: string
@@ -56,8 +55,6 @@ export default function Home() {
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [animatedCards, setAnimatedCards] = useState<number[]>([])
   const { cartItems } = useCart()
-  const [isChatbotOpen, setIsChatbotOpen] = useState(false)
-  const [chatbotMode, setChatbotMode] = useState<'default' | 'manager'>('default')
 
   useEffect(() => {
     const fetchData = async () => {
@@ -354,16 +351,7 @@ export default function Home() {
           </svg>
         </div>
         
-        <ArtistHowItWorks onAIMusicManagerClick={() => {
-          setIsChatbotOpen(true);
-          setChatbotMode('manager');
-        }} />
-        <Chatbot
-          isOpen={isChatbotOpen}
-          setIsOpen={setIsChatbotOpen}
-          mode={chatbotMode}
-          setMode={setChatbotMode}
-        />
+        <ArtistHowItWorks />
       </div>
       {/* Modal */}
       {isModalOpen && (

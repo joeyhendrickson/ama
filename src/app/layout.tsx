@@ -4,7 +4,9 @@ import type { Metadata } from "next";
 import { Inter } from "next/font/google";
 import "./globals.css";
 import { CartProvider } from "@/context/CartContext";
+import { ChatbotProvider } from "@/context/ChatbotContext";
 import Navbar from "@/components/Navbar";
+import Chatbot from "@/components/Chatbot";
 
 const inter = Inter({ subsets: ["latin"] });
 
@@ -22,8 +24,11 @@ export default function RootLayout({
     <html lang="en">
       <body className={`${inter.className} bg-black text-white`}>
         <CartProvider>
-          <Navbar />
-          <main>{children}</main>
+          <ChatbotProvider>
+            <Navbar />
+            <main>{children}</main>
+            <Chatbot />
+          </ChatbotProvider>
         </CartProvider>
       </body>
     </html>

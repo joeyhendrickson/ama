@@ -29,6 +29,7 @@ export default function CartPage() {
   const [artists, setArtists] = useState<{ [key: string]: Artist }>({})
   const [loading, setLoading] = useState(true)
   const [playingComment, setPlayingComment] = useState<string | null>(null)
+  const [currentAudio, setCurrentAudio] = useState<HTMLAudioElement | null>(null)
 
   useEffect(() => {
     const fetchSongs = async () => {
@@ -71,6 +72,16 @@ export default function CartPage() {
 
     fetchSongs()
   }, [cartItems])
+
+  // Cleanup audio when component unmounts or cartItems change
+  useEffect(() => {
+    return () => {
+      if (currentAudio) {
+        currentAudio.pause()
+        currentAudio.onended = null
+      }
+    }
+  }, [currentAudio])
 
   const totalPrice = cartItems.reduce((total, item) => {
     return total + (item.voteCount * item.votePrice)
@@ -130,21 +141,29 @@ export default function CartPage() {
     const item = cartItems.find(i => i.songId === songId)
     if (!item?.voiceComment) return
 
-    if (playingComment === songId) {
-      setPlayingComment(null)
+    // If clicking the same comment that's currently playing
+    if (playingComment === songId && currentAudio) {
+      // If audio is playing, restart it from the beginning
+      currentAudio.currentTime = 0
+      currentAudio.play()
       return
     }
 
     // Stop any currently playing audio
-    if (playingComment) {
-      setPlayingComment(null)
+    if (currentAudio) {
+      currentAudio.pause()
+      currentAudio.onended = null // Remove the event listener
     }
 
     // Create and play audio
     const audio = new Audio(item.voiceComment.audioData)
-    audio.onended = () => setPlayingComment(null)
+    audio.onended = () => {
+      setPlayingComment(null)
+      setCurrentAudio(null)
+    }
     audio.play()
     setPlayingComment(songId)
+    setCurrentAudio(audio)
   }
 
   const handleRemoveVoiceComment = (songId: string) => {
@@ -156,7 +175,7 @@ export default function CartPage() {
   if (loading) {
     return (
       <div className="min-h-screen bg-white flex items-center justify-center">
-        <div className="text-gray-600">Loading your rocket fuel...</div>
+        <div className="text-gray-600">Taking you to your Contributions...</div>
       </div>
     )
   }

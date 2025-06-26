@@ -2,7 +2,9 @@
 
 import Link from 'next/link'
 import { useCart } from '@/context/CartContext'
+import { useChatbot } from '@/context/ChatbotContext'
 import { useState } from 'react'
+import { usePathname } from 'next/navigation'
 
 const Logo = () => (
   <Link href="/" className="flex items-center gap-2">
@@ -23,16 +25,24 @@ const Logo = () => (
 
 export default function Navbar() {
   const { cartItems } = useCart()
+  const { setIsChatbotOpen } = useChatbot()
   const totalItems = Array.isArray(cartItems) ? cartItems.reduce((acc, item) => acc + item.voteCount, 0) : 0
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false)
+  const pathname = usePathname()
 
-  const scrollToHowItWorksHandler = (e: React.MouseEvent) => {
+  const handleHowItWorks = (e: React.MouseEvent) => {
     e.preventDefault();
     setIsMobileMenuOpen(false);
-    // Direct scroll logic (if needed):
-    const section = document.getElementById('how-it-works');
-    if (section) {
-      section.scrollIntoView({ behavior: 'smooth' });
+    
+    // If on homepage, scroll to how it works section
+    if (pathname === '/') {
+      const section = document.getElementById('how-it-works');
+      if (section) {
+        section.scrollIntoView({ behavior: 'smooth' });
+      }
+    } else {
+      // If not on homepage, open the chatbot
+      setIsChatbotOpen(true);
     }
   };
 
@@ -49,7 +59,7 @@ export default function Navbar() {
           <a
             href="#how-it-works"
             className="hover:text-black transition-colors bg-transparent border-none text-gray-700 cursor-pointer"
-            onClick={scrollToHowItWorksHandler}
+            onClick={handleHowItWorks}
           >
             How It Works
           </a>
@@ -126,7 +136,7 @@ export default function Navbar() {
                 <a
                   href="#how-it-works"
                   className="block bg-black text-white font-semibold py-2 px-4 rounded-full hover:bg-gray-800 transition-colors text-center cursor-pointer"
-                  onClick={scrollToHowItWorksHandler}
+                  onClick={handleHowItWorks}
                 >
                   How It Works
                 </a>

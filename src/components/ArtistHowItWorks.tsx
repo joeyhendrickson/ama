@@ -1,6 +1,7 @@
 'use client'
 
 import React, { forwardRef } from 'react'
+import { useChatbot } from '@/context/ChatbotContext'
 
 const features = [
   {
@@ -49,32 +50,37 @@ const features = [
   }
 ]
 
-type ArtistHowItWorksProps = {
-  onAIMusicManagerClick?: () => void
-}
+const ArtistHowItWorks = () => {
+  const { setIsChatbotOpen, setChatbotMode } = useChatbot()
 
-const ArtistHowItWorks = ({ onAIMusicManagerClick }: ArtistHowItWorksProps) => (
-  <section id="how-it-works" className="max-w-4xl mx-auto mt-16 mb-12 px-4" data-section="how-it-works">
-    <div className="max-w-5xl mx-auto mb-12 text-center">
-      <h2 className="text-4xl font-extrabold mb-4 text-gray-900">For Artists: How It Works</h2>
-    </div>
-    <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-      {features.map((feature, idx) => {
-        const isAIMusicManager = feature.title === 'AI Music Manager';
-        return (
-          <div
-            key={feature.title}
-            className={`bg-white rounded-xl shadow-lg p-8 flex flex-col items-center text-center hover:shadow-2xl transition-shadow duration-300 ${isAIMusicManager ? 'cursor-pointer hover:bg-indigo-50' : ''}`}
-            onClick={isAIMusicManager && typeof onAIMusicManagerClick === 'function' ? onAIMusicManagerClick : undefined}
-          >
-            {feature.icon}
-            <h3 className="text-xl font-bold mt-4 mb-2 text-gray-900">{feature.title}</h3>
-            <p className="text-gray-700 mb-2">{feature.description}</p>
-          </div>
-        );
-      })}
-    </div>
-  </section>
-)
+  const handleAIMusicManagerClick = () => {
+    setIsChatbotOpen(true)
+    setChatbotMode('manager')
+  }
+
+  return (
+    <section id="how-it-works" className="max-w-4xl mx-auto mt-16 mb-12 px-4" data-section="how-it-works">
+      <div className="max-w-5xl mx-auto mb-12 text-center">
+        <h2 className="text-4xl font-extrabold mb-4 text-gray-900">For Artists: How It Works</h2>
+      </div>
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+        {features.map((feature, idx) => {
+          const isAIMusicManager = feature.title === 'AI Music Manager';
+          return (
+            <div
+              key={feature.title}
+              className={`bg-white rounded-xl shadow-lg p-8 flex flex-col items-center text-center hover:shadow-2xl transition-shadow duration-300 ${isAIMusicManager ? 'cursor-pointer hover:bg-indigo-50' : ''}`}
+              onClick={isAIMusicManager ? handleAIMusicManagerClick : undefined}
+            >
+              {feature.icon}
+              <h3 className="text-xl font-bold mt-4 mb-2 text-gray-900">{feature.title}</h3>
+              <p className="text-gray-700 mb-2">{feature.description}</p>
+            </div>
+          );
+        })}
+      </div>
+    </section>
+  )
+}
 
 export default ArtistHowItWorks 

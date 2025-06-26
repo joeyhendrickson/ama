@@ -25,6 +25,7 @@ interface Song {
   submitted_for_approval?: boolean
   current_votes: number
   vote_goal: number
+  vote_price?: number
   original_vote_count: number
   created_at: string
   removed_at?: string
@@ -69,6 +70,27 @@ export default function ArtistDashboard() {
   const [activeTab, setActiveTab] = useState('overview')
   const [playingComment, setPlayingComment] = useState<string | null>(null)
   const [processingPayouts, setProcessingPayouts] = useState(false)
+  
+  // Upload modal state
+  const [showUploadModal, setShowUploadModal] = useState(false)
+  const [uploadFormData, setUploadFormData] = useState({
+    title: '',
+    genre: '',
+    contributionAmount: 1.00,
+    songFile: null as File | null
+  })
+  const [uploading, setUploading] = useState(false)
+  
+  // Edit song modal state
+  const [showEditModal, setShowEditModal] = useState(false)
+  const [editingSong, setEditingSong] = useState<Song | null>(null)
+  const [editFormData, setEditFormData] = useState({
+    title: '',
+    genre: '',
+    contributionAmount: 1.00,
+    voteGoal: 100
+  })
+  const [updating, setUpdating] = useState(false)
 
   useEffect(() => {
     checkAuth()
@@ -195,8 +217,131 @@ export default function ArtistDashboard() {
   }
 
   const handleSongUpload = async () => {
-    // Implementation for song upload
-    console.log('Song upload functionality')
+    setShowUploadModal(true)
+  }
+
+  const handleUploadFormChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
+    const { name, value } = e.target
+    setUploadFormData(prev => ({
+      ...prev,
+      [name]: name === 'contributionAmount' ? parseFloat(value) || 0 : value
+    }))
+  }
+
+  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0]
+    if (file) {
+      setUploadFormData(prev => ({
+        ...prev,
+        songFile: file
+      }))
+    }
+  }
+
+  const handleUploadSubmit = async (e: React.FormEvent) => {
+    e.preventDefault()
+    if (!artist || !uploadFormData.songFile) return
+
+    setUploading(true)
+    try {
+      const formData = new FormData()
+      formData.append('songTitle', uploadFormData.title)
+      formData.append('genre', uploadFormData.genre)
+      formData.append('votePrice', uploadFormData.contributionAmount.toString())
+      formData.append('voteGoal', '100') // Default vote goal
+      formData.append('songFile', uploadFormData.songFile)
+
+      const response = await fetch('/api/artist/upload-song', {
+        method: 'POST',
+        body: formData
+      })
+
+      if (response.ok) {
+        const result = await response.json()
+        if (result.success) {
+          alert('Song uploaded successfully!')
+          setShowUploadModal(false)
+          setUploadFormData({
+            title: '',
+            genre: '',
+            contributionAmount: 1.00,
+            songFile: null
+          })
+          // Refresh songs list
+          await fetchSongs(artist.id)
+        } else {
+          alert(`Upload failed: ${result.message}`)
+        }
+      } else {
+        alert('Upload failed. Please try again.')
+      }
+    } catch (error) {
+      console.error('Upload error:', error)
+      alert('Upload failed. Please try again.')
+    } finally {
+      setUploading(false)
+    }
+  }
+
+  const handleEditSong = (song: Song) => {
+    setEditingSong(song)
+    setEditFormData({
+      title: song.title,
+      genre: song.genre || '',
+      contributionAmount: song.vote_price || 1.00,
+      voteGoal: song.vote_goal || 100
+    })
+    setShowEditModal(true)
+  }
+
+  const handleEditFormChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
+    const { name, value } = e.target
+    setEditFormData(prev => ({
+      ...prev,
+      [name]: name === 'contributionAmount' || name === 'voteGoal' ? parseFloat(value) || 0 : value
+    }))
+  }
+
+  const handleEditSubmit = async (e: React.FormEvent) => {
+    e.preventDefault()
+    if (!editingSong || !artist) return
+
+    setUpdating(true)
+    try {
+      const response = await fetch('/api/artist/update-song', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          songId: editingSong.id,
+          title: editFormData.title,
+          genre: editFormData.genre,
+          votePrice: editFormData.contributionAmount,
+          voteGoal: editFormData.voteGoal
+        })
+      })
+
+      if (response.ok) {
+        const result = await response.json()
+        if (result.success) {
+          alert('Song updated successfully!')
+          setShowEditModal(false)
+          setEditingSong(null)
+          // Refresh songs list
+          await fetchSongs(artist.id)
+        } else {
+          alert(`Update failed: ${result.message}`)
+        }
+      } else {
+        alert('Update failed. Please try again.')
+      }
+    } catch (error) {
+      console.error('Update error:', error)
+      alert('Update failed. Please try again.')
+    } finally {
+      setUpdating(false)
+    }
   }
 
   const submitSongForApproval = async (songId: string) => {
@@ -401,14 +546,14 @@ export default function ArtistDashboard() {
             {!artist.stripe_account_id && (
               <button
                 onClick={connectStripeAccount}
-                className="bg-blue-600 hover:bg-blue-700 text-white px-6 py-2 rounded-lg transition-colors"
+                className="bg-black hover:bg-gray-800 text-white px-6 py-2 rounded-lg transition-colors"
               >
                 Connect Stripe
               </button>
             )}
             <button
               onClick={() => router.push('/')}
-              className="bg-gray-600 hover:bg-gray-700 text-white px-6 py-2 rounded-lg transition-colors"
+              className="bg-black hover:bg-gray-800 text-white px-6 py-2 rounded-lg transition-colors"
             >
               Back to Site
             </button>
@@ -419,40 +564,40 @@ export default function ArtistDashboard() {
         <div className="flex flex-wrap gap-2 mb-8">
           <button
             onClick={() => setActiveTab('overview')}
-            className={`px-4 py-2 rounded-lg font-medium transition-colors ${
-              activeTab === 'overview' ? 'bg-blue-600 text-white' : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
+            className={`px-4 py-2 rounded-lg transition-colors ${
+              activeTab === 'overview' ? 'bg-black text-white' : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
             }`}
           >
             Overview
           </button>
           <button
             onClick={() => setActiveTab('songs')}
-            className={`px-4 py-2 rounded-lg font-medium transition-colors ${
-              activeTab === 'songs' ? 'bg-blue-600 text-white' : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
+            className={`px-4 py-2 rounded-lg transition-colors ${
+              activeTab === 'songs' ? 'bg-black text-white' : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
             }`}
           >
             Songs ({songs.length})
           </button>
           <button
             onClick={() => setActiveTab('comments')}
-            className={`px-4 py-2 rounded-lg font-medium transition-colors ${
-              activeTab === 'comments' ? 'bg-blue-600 text-white' : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
+            className={`px-4 py-2 rounded-lg transition-colors ${
+              activeTab === 'comments' ? 'bg-black text-white' : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
             }`}
           >
             Voice Comments ({voiceComments.length})
           </button>
           <button
             onClick={() => setActiveTab('purchases')}
-            className={`px-4 py-2 rounded-lg font-medium transition-colors ${
-              activeTab === 'purchases' ? 'bg-blue-600 text-white' : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
+            className={`px-4 py-2 rounded-lg transition-colors ${
+              activeTab === 'purchases' ? 'bg-black text-white' : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
             }`}
           >
             Purchases ({purchases.length})
           </button>
           <button
             onClick={() => setActiveTab('payouts')}
-            className={`px-4 py-2 rounded-lg font-medium transition-colors ${
-              activeTab === 'payouts' ? 'bg-blue-600 text-white' : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
+            className={`px-4 py-2 rounded-lg transition-colors ${
+              activeTab === 'payouts' ? 'bg-black text-white' : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
             }`}
           >
             Payouts & Earnings
@@ -506,7 +651,7 @@ export default function ArtistDashboard() {
                 <h2 className="text-2xl font-bold text-gray-900">Your Songs</h2>
                 <button
                   onClick={handleSongUpload}
-                  className="bg-blue-600 hover:bg-blue-700 text-white px-6 py-2 rounded-lg transition-colors"
+                  className="bg-black hover:bg-gray-800 text-white px-6 py-2 rounded-lg transition-colors"
                 >
                   Upload New Song
                 </button>
@@ -538,12 +683,20 @@ export default function ArtistDashboard() {
                             <td className="px-6 py-4 text-green-600 font-semibold">{song.current_votes}</td>
                             <td className="px-6 py-4 text-gray-600">{song.vote_goal}</td>
                             <td className="px-6 py-4">
-                              <button
-                                onClick={() => removeSongFromPublic(song.id)}
-                                className="bg-red-600 hover:bg-red-700 text-white px-3 py-1 rounded text-sm"
-                              >
-                                Remove from Public
-                              </button>
+                              <div className="flex gap-2">
+                                <button
+                                  onClick={() => handleEditSong(song)}
+                                  className="bg-blue-600 hover:bg-blue-700 text-white px-3 py-1 rounded text-sm"
+                                >
+                                  Edit
+                                </button>
+                                <button
+                                  onClick={() => removeSongFromPublic(song.id)}
+                                  className="bg-black hover:bg-gray-800 text-white px-3 py-1 rounded text-sm"
+                                >
+                                  Remove from Public
+                                </button>
+                              </div>
                             </td>
                           </tr>
                         ))}
@@ -581,7 +734,7 @@ export default function ArtistDashboard() {
                             <td className="px-6 py-4">
                               <button
                                 onClick={() => submitSongForApproval(song.id)}
-                                className="bg-blue-600 hover:bg-blue-700 text-white px-3 py-1 rounded text-sm"
+                                className="bg-black hover:bg-gray-800 text-white px-3 py-1 rounded text-sm"
                               >
                                 Re-submit for Approval
                               </button>
@@ -625,17 +778,23 @@ export default function ArtistDashboard() {
                             </td>
                             <td className="px-6 py-4">
                               <div className="flex gap-2">
+                                <button
+                                  onClick={() => handleEditSong(song)}
+                                  className="bg-blue-600 hover:bg-blue-700 text-white px-3 py-1 rounded text-sm"
+                                >
+                                  Edit
+                                </button>
                                 {!song.submitted_for_approval && (
                                   <button
                                     onClick={() => submitSongForApproval(song.id)}
-                                    className="bg-blue-600 hover:bg-blue-700 text-white px-3 py-1 rounded text-sm"
+                                    className="bg-black hover:bg-gray-800 text-white px-3 py-1 rounded text-sm"
                                   >
                                     Submit for Approval
                                   </button>
                                 )}
                                 <button
                                   onClick={() => deletePrivateSong(song.id)}
-                                  className="bg-red-600 hover:bg-red-700 text-white px-3 py-1 rounded text-sm"
+                                  className="bg-black hover:bg-gray-800 text-white px-3 py-1 rounded text-sm"
                                 >
                                   Delete
                                 </button>
@@ -659,7 +818,7 @@ export default function ArtistDashboard() {
                 <div className="flex gap-2">
                   <button
                     onClick={() => setActiveTab('comments')}
-                    className="bg-blue-600 text-white px-4 py-2 rounded-lg"
+                    className="bg-black text-white px-4 py-2 rounded-lg"
                   >
                     All ({voiceComments.length})
                   </button>
@@ -683,9 +842,9 @@ export default function ArtistDashboard() {
                         </p>
                       </div>
                       <div className={`px-3 py-1 rounded-full text-xs font-medium ${
+                        comment.status === 'sent' ? 'bg-black text-white' :
                         comment.status === 'purchased' ? 'bg-green-600 text-white' :
-                        comment.status === 'sent' ? 'bg-blue-600 text-white' :
-                        'bg-gray-600 text-gray-300'
+                        'bg-gray-600 text-white'
                       }`}>
                         {comment.status}
                       </div>
@@ -694,7 +853,7 @@ export default function ArtistDashboard() {
                     <div className="flex items-center gap-4">
                       <button
                         onClick={() => handlePlayVoiceComment(comment.id, comment.audio_data)}
-                        className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg transition-colors flex items-center gap-2"
+                        className="bg-black hover:bg-gray-800 text-white px-4 py-2 rounded-lg transition-colors flex items-center gap-2"
                       >
                         {playingComment === comment.id ? (
                           <>
@@ -811,7 +970,7 @@ export default function ArtistDashboard() {
                       </div>
                     )}
                     
-                    <button className="bg-blue-600 hover:bg-blue-700 text-white px-6 py-3 rounded-lg transition-colors">
+                    <button className="bg-black hover:bg-gray-800 text-white px-6 py-3 rounded-lg transition-colors">
                       View Stripe Dashboard
                     </button>
                   </div>
@@ -859,6 +1018,213 @@ export default function ArtistDashboard() {
           )}
         </div>
       </div>
+
+      {/* Upload Song Modal */}
+      {showUploadModal && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
+          <div className="bg-white border border-gray-200 rounded-2xl max-w-md w-full p-6 shadow-xl">
+            <div className="flex justify-between items-center mb-6">
+              <h2 className="text-2xl font-bold text-gray-900">Upload New Song</h2>
+              <button
+                onClick={() => setShowUploadModal(false)}
+                className="text-gray-500 hover:text-gray-700 text-2xl"
+              >
+                ×
+              </button>
+            </div>
+            
+            <form onSubmit={handleUploadSubmit} className="space-y-4">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Song Title *
+                </label>
+                <input
+                  type="text"
+                  name="title"
+                  value={uploadFormData.title}
+                  onChange={handleUploadFormChange}
+                  required
+                  className="w-full px-4 py-3 bg-gray-50 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#E55A2B] focus:border-[#E55A2B] text-gray-900 placeholder-gray-500"
+                  placeholder="Enter song title"
+                />
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Genre (Optional)
+                </label>
+                <input
+                  type="text"
+                  name="genre"
+                  value={uploadFormData.genre}
+                  onChange={handleUploadFormChange}
+                  className="w-full px-4 py-3 bg-gray-50 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#E55A2B] focus:border-[#E55A2B] text-gray-900 placeholder-gray-500"
+                  placeholder="e.g., Rock, Pop, Electronic"
+                />
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Contribution Amount ($) *
+                </label>
+                <input
+                  type="number"
+                  name="contributionAmount"
+                  value={uploadFormData.contributionAmount}
+                  onChange={handleUploadFormChange}
+                  min="0.01"
+                  step="0.01"
+                  required
+                  className="w-full px-4 py-3 bg-gray-50 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#E55A2B] focus:border-[#E55A2B] text-gray-900 placeholder-gray-500"
+                  placeholder="1.00"
+                />
+                <p className="text-xs text-gray-500 mt-1">
+                  Set the price per contribution for this song
+                </p>
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Song File (MP3, WAV, M4A, AIFF, or AIF) *
+                </label>
+                <input
+                  type="file"
+                  name="songFile"
+                  onChange={handleFileChange}
+                  accept=".mp3,.wav,.m4a,.aiff,.aif"
+                  required
+                  className="w-full px-4 py-3 bg-gray-50 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#E55A2B] focus:border-[#E55A2B] text-gray-700 file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-sm file:font-semibold file:bg-[#E55A2B] file:text-white hover:file:bg-[#D14A1B]"
+                />
+                <p className="text-sm text-gray-500 mt-1">
+                  Maximum file size: 50MB
+                </p>
+              </div>
+
+              <div className="flex gap-3 pt-4">
+                <button
+                  type="button"
+                  onClick={() => setShowUploadModal(false)}
+                  className="flex-1 bg-gray-600 hover:bg-gray-700 text-white py-3 px-6 rounded-xl font-semibold transition-colors"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  disabled={uploading || !uploadFormData.title || !uploadFormData.songFile}
+                  className="flex-1 bg-[#E55A2B] hover:bg-[#D14A1B] disabled:bg-gray-400 text-white py-3 px-6 rounded-xl font-semibold transition-colors"
+                >
+                  {uploading ? 'Uploading...' : 'Upload Song'}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* Edit Song Modal */}
+      {showEditModal && editingSong && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
+          <div className="bg-white border border-gray-200 rounded-2xl max-w-md w-full p-6 shadow-xl">
+            <div className="flex justify-between items-center mb-6">
+              <h2 className="text-2xl font-bold text-gray-900">Edit Song</h2>
+              <button
+                onClick={() => setShowEditModal(false)}
+                className="text-gray-500 hover:text-gray-700 text-2xl"
+              >
+                ×
+              </button>
+            </div>
+            
+            <form onSubmit={handleEditSubmit} className="space-y-4">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Song Title *
+                </label>
+                <input
+                  type="text"
+                  name="title"
+                  value={editFormData.title}
+                  onChange={handleEditFormChange}
+                  required
+                  className="w-full px-4 py-3 bg-gray-50 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#E55A2B] focus:border-[#E55A2B] text-gray-900 placeholder-gray-500"
+                  placeholder="Enter song title"
+                />
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Genre (Optional)
+                </label>
+                <input
+                  type="text"
+                  name="genre"
+                  value={editFormData.genre}
+                  onChange={handleEditFormChange}
+                  className="w-full px-4 py-3 bg-gray-50 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#E55A2B] focus:border-[#E55A2B] text-gray-900 placeholder-gray-500"
+                  placeholder="e.g., Rock, Pop, Electronic"
+                />
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Contribution Amount ($) *
+                </label>
+                <input
+                  type="number"
+                  name="contributionAmount"
+                  value={editFormData.contributionAmount}
+                  onChange={handleEditFormChange}
+                  min="0.01"
+                  step="0.01"
+                  required
+                  className="w-full px-4 py-3 bg-gray-50 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#E55A2B] focus:border-[#E55A2B] text-gray-900 placeholder-gray-500"
+                  placeholder="1.00"
+                />
+                <p className="text-xs text-gray-500 mt-1">
+                  Set the price per contribution for this song
+                </p>
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Contribution Goal *
+                </label>
+                <input
+                  type="number"
+                  name="voteGoal"
+                  value={editFormData.voteGoal}
+                  onChange={handleEditFormChange}
+                  min="1"
+                  step="1"
+                  required
+                  className="w-full px-4 py-3 bg-gray-50 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#E55A2B] focus:border-[#E55A2B] text-gray-900 placeholder-gray-500"
+                  placeholder="100"
+                />
+                <p className="text-xs text-gray-500 mt-1">
+                  Set the total contribution goal for this song
+                </p>
+              </div>
+
+              <div className="flex gap-3 pt-4">
+                <button
+                  type="button"
+                  onClick={() => setShowEditModal(false)}
+                  className="flex-1 bg-gray-600 hover:bg-gray-700 text-white py-3 px-6 rounded-xl font-semibold transition-colors"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  disabled={updating || !editFormData.title}
+                  className="flex-1 bg-[#E55A2B] hover:bg-[#D14A1B] disabled:bg-gray-400 text-white py-3 px-6 rounded-xl font-semibold transition-colors"
+                >
+                  {updating ? 'Updating...' : 'Update Song'}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
     </div>
   )
 } 
