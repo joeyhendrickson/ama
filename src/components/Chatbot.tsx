@@ -1,21 +1,10 @@
 'use client'
 
 import { useState, useRef, useEffect } from 'react'
+import { useChatbot } from '@/context/ChatbotContext'
 
-const Chatbot = ({ 
-  isOpen: externalIsOpen, 
-  setIsOpen: externalSetIsOpen,
-  mode = 'default',
-  setMode
-}: { 
-  isOpen?: boolean, 
-  setIsOpen?: (open: boolean) => void,
-  mode?: 'default' | 'manager',
-  setMode?: (mode: 'default' | 'manager') => void
-}) => {
-  const [internalIsOpen, setInternalIsOpen] = useState(false)
-  const isOpen = externalIsOpen !== undefined ? externalIsOpen : internalIsOpen
-  const setIsOpen = externalSetIsOpen || setInternalIsOpen
+const Chatbot = () => {
+  const { isChatbotOpen, setIsChatbotOpen, chatbotMode, setChatbotMode } = useChatbot()
 
   const [messages, setMessages] = useState<{ id: string, text: string, isUser: boolean }[]>([])
   const [inputValue, setInputValue] = useState('')
@@ -24,7 +13,7 @@ const Chatbot = ({
 
   // Add welcome message when opened in manager mode
   useEffect(() => {
-    if (isOpen && mode === 'manager' && messages.length === 0) {
+    if (isChatbotOpen && chatbotMode === 'manager' && messages.length === 0) {
       const welcomeMessage = {
         id: 'welcome',
         text: "🚀 Welcome to your AI Music Manager! I'm here to help you strategize your music career, grow your audience, and maximize your earnings on LaunchThatSong. What would you like to work on today?",
@@ -32,10 +21,10 @@ const Chatbot = ({
       }
       setMessages([welcomeMessage])
     }
-  }, [isOpen, mode, messages.length])
+  }, [isChatbotOpen, chatbotMode, messages.length])
 
   // Debug log
-  console.log('Chatbot rendered', { isOpen, mode })
+  console.log('Chatbot rendered', { isOpen: isChatbotOpen, mode: chatbotMode })
 
   const handleSendMessage = async () => {
     if (!inputValue.trim()) return
@@ -66,10 +55,10 @@ const Chatbot = ({
   }
 
   return (
-    <div className={`fixed z-50 ${isOpen ? 'bottom-4 left-1/2 transform -translate-x-1/2' : 'bottom-4 left-4'}`}>
-      {!isOpen && (
+    <div className={`fixed z-50 ${isChatbotOpen ? 'bottom-4 left-1/2 transform -translate-x-1/2' : 'bottom-4 left-4'}`}>
+      {!isChatbotOpen && (
         <button
-          onClick={() => setIsOpen(true)}
+          onClick={() => setIsChatbotOpen(true)}
           className="bg-[#E55A2B] hover:bg-[#D14A1B] text-white rounded-full p-4 md:p-8 shadow-lg hover:shadow-xl transition-all duration-300 transform hover:scale-105"
           aria-label="Open chat"
         >
@@ -78,15 +67,15 @@ const Chatbot = ({
           </svg>
         </button>
       )}
-      {isOpen && (
+      {isChatbotOpen && (
         <div className="bg-white rounded-lg shadow-2xl flex flex-col border border-gray-200 w-[90vw] max-w-[40rem] h-[80vh] max-h-[48rem] md:w-[40rem] md:h-[48rem]">
           <div className="bg-[#E55A2B] text-white p-4 rounded-t-lg flex justify-between items-center">
             <div>
-              <h3 className="font-semibold text-sm md:text-base">{mode === 'manager' ? 'AI Music Manager' : 'Music Manager'}</h3>
+              <h3 className="font-semibold text-sm md:text-base">{chatbotMode === 'manager' ? 'AI Music Manager' : 'Music Manager'}</h3>
               <p className="text-xs md:text-sm opacity-90">Get setup and build your strategy!</p>
             </div>
             <button
-              onClick={() => setIsOpen(false)}
+              onClick={() => setIsChatbotOpen(false)}
               className="text-white hover:text-gray-200 transition-colors"
               aria-label="Close chat"
             >
