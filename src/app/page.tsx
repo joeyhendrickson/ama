@@ -164,14 +164,6 @@ export default function Home() {
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-gray-50 via-white to-gray-50">
-      {/* Invisible Admin Login Button - Top Right Corner */}
-      <button
-        onClick={() => window.location.href = '/admin-login'}
-        className="fixed top-0 right-0 w-20 h-20 z-50 bg-transparent cursor-pointer"
-        title="Admin Login"
-        aria-label="Admin Login"
-      />
-
       {/* Search History Icon - Top Right */}
       <div className="fixed top-4 right-4 z-40">
         <button
