@@ -28,11 +28,11 @@ export async function POST(req: Request) {
       )
     }
 
-    // Get artist information for each song to include in metadata
+    // Get song information for metadata
     const songIds = items.map((item: any) => item.songId)
     const { data: songs, error: songsError } = await supabase
       .from('songs')
-      .select('id, artist_id, title')
+      .select('id, artist_name, title')
       .in('id', songIds)
 
     if (songsError) {
@@ -43,10 +43,10 @@ export async function POST(req: Request) {
       )
     }
 
-    // Create a map of songId to artistId
+    // Create a map of songId to artistName
     const songToArtistMap: { [key: string]: string } = {}
     songs?.forEach((song: any) => {
-      songToArtistMap[song.id] = song.artist_id
+      songToArtistMap[song.id] = song.artist_name || 'Joey Hendrickson'
     })
 
     const line_items = items.map((item: any) => ({
@@ -60,20 +60,14 @@ export async function POST(req: Request) {
       quantity: item.quantity,
     }))
 
-    // Prepare metadata for votes, voice comments, and artist information
-    const votes: { [key: string]: number } = {}
-    const artistVotes: { [key: string]: { [key: string]: number } } = {} // artistId -> { songId: quantity }
+    // Prepare metadata for purchases and voice comments
+    const purchases: { [key: string]: number } = {}
     
     items.forEach((item: any) => {
-      votes[item.songId] = item.quantity
-      const artistId = songToArtistMap[item.songId]
-      if (artistId) {
-        if (!artistVotes[artistId]) {
-          artistVotes[artistId] = {}
-        }
-        artistVotes[artistId][item.songId] = item.quantity
-      }
+      purchases[item.songId] = item.quantity
     })
+
+    const totalAmount = items.reduce((sum: number, item: any) => sum + (item.vote_price * item.quantity), 0)
 
     const session = await stripe.checkout.sessions.create({
       payment_method_types: ['card'],
@@ -82,10 +76,9 @@ export async function POST(req: Request) {
       success_url: `${process.env.NEXT_PUBLIC_BASE_URL}/success`,
       cancel_url: `${process.env.NEXT_PUBLIC_BASE_URL}/cart`,
       metadata: {
-        votes: JSON.stringify(votes),
+        purchases: JSON.stringify(purchases),
         voiceCommentIds: JSON.stringify(voiceCommentIds || []),
-        artistVotes: JSON.stringify(artistVotes),
-        totalAmount: (items.reduce((sum: number, item: any) => sum + (item.vote_price * item.quantity), 0)).toString()
+        totalAmount: totalAmount.toString()
       }
     })
 

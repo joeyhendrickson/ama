@@ -3,16 +3,13 @@
 import type { Metadata } from "next";
 import { Inter } from "next/font/google";
 import "./globals.css";
-import { CartProvider } from "@/context/CartContext";
-import { ChatbotProvider } from "@/context/ChatbotContext";
-import Navbar from "@/components/Navbar";
-import Chatbot from "@/components/Chatbot";
+import ConditionalNavbar from "@/components/ConditionalNavbar";
 
 const inter = Inter({ subsets: ["latin"] });
 
 export const metadata: Metadata = {
-  title: "Launch That Song",
-  description: "Vote on songs you want to launch into the world!",
+  title: "Joey Hendrickson - Consultant & Musician",
+  description: "Consultant specializing in complex project management for Fortune 100 companies, startups, and cities. Also a musician and songwriter.",
 };
 
 export default function RootLayout({
@@ -22,14 +19,9 @@ export default function RootLayout({
 }) {
   return (
     <html lang="en">
-      <body className={`${inter.className} bg-black text-white`}>
-        <CartProvider>
-          <ChatbotProvider>
-            <Navbar />
-            <main>{children}</main>
-            <Chatbot />
-          </ChatbotProvider>
-        </CartProvider>
+      <body className={`${inter.className} bg-white text-gray-900`}>
+        <ConditionalNavbar />
+        <main>{children}</main>
       </body>
     </html>
   )

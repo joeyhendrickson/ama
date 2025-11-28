@@ -23,11 +23,9 @@ export type CartItem = {
 
 type CartContextType = {
   cartItems: CartItem[]
-  lastVisitedArtist: string | null
   addToCart: (item: CartItem) => void
   removeFromCart: (songId: string) => void
   clearCart: () => void
-  setLastVisitedArtist: (artistId: string) => void
   addVoiceComment: (songId: string, voiceComment: VoiceComment) => void
   removeVoiceComment: (songId: string) => void
   getVoiceComment: (songId: string) => VoiceComment | undefined
@@ -37,7 +35,6 @@ const CartContext = createContext<CartContextType | undefined>(undefined)
 
 export const CartProvider = ({ children }: { children: ReactNode }) => {
   const [cartItems, setCartItems] = useState<CartItem[]>([])
-  const [lastVisitedArtist, setLastVisitedArtistState] = useState<string | null>(null)
 
   // Function to reset corrupted cart data
   const resetCorruptedCart = () => {
@@ -63,21 +60,11 @@ export const CartProvider = ({ children }: { children: ReactNode }) => {
       }
     }
     
-    const storedLastArtist = localStorage.getItem('lastVisitedArtist')
-    if (storedLastArtist) {
-      setLastVisitedArtistState(storedLastArtist)
-    }
   }, [])
 
   useEffect(() => {
     localStorage.setItem('cart', JSON.stringify(cartItems))
   }, [cartItems])
-
-  useEffect(() => {
-    if (lastVisitedArtist) {
-      localStorage.setItem('lastVisitedArtist', lastVisitedArtist)
-    }
-  }, [lastVisitedArtist])
 
   const addToCart = (item: CartItem) => {
     setCartItems(prev => {
@@ -102,10 +89,6 @@ export const CartProvider = ({ children }: { children: ReactNode }) => {
   }
 
   const clearCart = () => setCartItems([])
-
-  const setLastVisitedArtist = (artistId: string) => {
-    setLastVisitedArtistState(artistId)
-  }
 
   const addVoiceComment = (songId: string, voiceComment: VoiceComment) => {
     setCartItems(prev => {
@@ -137,11 +120,9 @@ export const CartProvider = ({ children }: { children: ReactNode }) => {
   return (
     <CartContext.Provider value={{ 
       cartItems: Array.isArray(cartItems) ? cartItems : [], 
-      lastVisitedArtist, 
       addToCart, 
       removeFromCart, 
       clearCart, 
-      setLastVisitedArtist,
       addVoiceComment,
       removeVoiceComment,
       getVoiceComment

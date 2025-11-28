@@ -1,449 +1,329 @@
 'use client'
 
-import { useEffect, useState, createContext, useRef, useCallback } from 'react'
-import Image from 'next/image'
-import Link from 'next/link'
-import { supabase } from '@/lib/supabaseClient'
-import Navbar from '@/components/Navbar'
-import { useCart } from '@/context/CartContext'
-import ArtistHowItWorks from '@/components/ArtistHowItWorks'
+import { useState, useRef, useEffect } from 'react'
+import GenerativeDisplay from '@/components/GenerativeDisplay'
 
-type Artist = {
-  id: string
-  name: string
-  bio: string
-  image_url: string
-  spotify_url: string
-  soundcloud_url: string
-  website_url: string
-  genre?: string
-  vote_percentage?: number
+interface SearchResult {
+  success: boolean
+  query: string
+  aiResponse: string
+  relevantContent: any[]
+  suggestions?: string[]
+  isAdminAccess?: boolean
+  redirectTo?: string
 }
 
-type Song = {
-  id: string
-  title: string
-  artist_name: string
-  genre: string
-  created_at: string
-  vote_count: number
-  target_votes: number
-  status: string
+interface SearchHistoryItem {
+  query: string
+  response: string
+  timestamp: number
 }
 
-// Force immediate deployment - urgent update
 export default function Home() {
-  const [artists, setArtists] = useState<Artist[]>([])
-  const [recentSongs, setRecentSongs] = useState<Song[]>([])
-  const [error, setError] = useState<string | null>(null)
-  const [isModalOpen, setIsModalOpen] = useState(false)
-  const [isAnimating, setIsAnimating] = useState(false)
-  const [activeCardIndex, setActiveCardIndex] = useState(-1)
-  const [formData, setFormData] = useState({
-    artistName: '',
-    email: '',
-    password: '',
-    confirmPassword: '',
-    songName: '',
-    songFile: null as File | null,
-    bio: '',
-    soundcloudLink: '',
-    website: '',
-    message: '',
-    agreeToTerms: false
-  })
-  const [isSubmitting, setIsSubmitting] = useState(false)
-  const [animatedCards, setAnimatedCards] = useState<number[]>([])
-  const { cartItems } = useCart()
+  const [query, setQuery] = useState('')
+  const [searchResults, setSearchResults] = useState<SearchResult | null>(null)
+  const [isSearching, setIsSearching] = useState(false)
+  const [showHistory, setShowHistory] = useState(false)
+  const [searchHistory, setSearchHistory] = useState<SearchHistoryItem[]>([])
+  const chatEndRef = useRef<HTMLDivElement>(null)
+  const inputRef = useRef<HTMLInputElement>(null)
 
+  // Load search history from localStorage on mount
   useEffect(() => {
-    const fetchData = async () => {
-      // Fetch artists
-      const { data: artistsData, error: artistsError } = await supabase
-        .from('artists')
-        .select('*')
-        .order('name')
-
-      console.log('Fetched artists data:', artistsData)
-      console.log('Artists error:', artistsError)
-
-      if (artistsError) {
-        console.error('Error fetching artists:', artistsError.message)
-        setError(artistsError.message)
-      } else if (artistsData && artistsData.length > 0) {
-        const artistsWithDummyData = artistsData.map((artist: Artist) => {
-          let genre = 'Pop • Rock' // default
-          
-          // Set specific genres for known artists
-          if (artist.name === 'Douggert') {
-            genre = 'Punk Electronica • EDM'
-          } else if (artist.name === 'Joey Hendrickson') {
-            genre = 'Alternative • Acoustic'
-          } else if (artist.name === 'Columbus Songwriters Association') {
-            genre = 'Pop • Acoustic'
-          }
-          
-          return {
-            ...artist,
-            genre,
-            vote_percentage: Math.floor(Math.random() * (85 - 40 + 1)) + 40,
-          }
-        })
-        setArtists(artistsWithDummyData)
-      } else {
-        console.log('No artists found in database')
-        setArtists([])
-      }
-
-      // Fetch recent songs
-      const { data: songsData, error: songsError } = await supabase
-        .from('songs')
-        .select('*')
-        .order('created_at', { ascending: false })
-        .limit(5)
-      
-      if (songsError) {
-        console.error('Error fetching songs:', songsError.message)
-      } else {
-        setRecentSongs(songsData || [])
+    const saved = localStorage.getItem('searchHistory')
+    if (saved) {
+      try {
+        setSearchHistory(JSON.parse(saved))
+      } catch (e) {
+        console.error('Error loading search history:', e)
       }
     }
-
-    fetchData()
   }, [])
 
-  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
-    const { name, value, type } = e.target
-    if (type === 'checkbox') {
-      const checked = (e.target as HTMLInputElement).checked
-      setFormData(prev => ({ ...prev, [name]: checked }))
-    } else {
-      setFormData(prev => ({ ...prev, [name]: value }))
+  // Clear history when page is refreshed or exited
+  useEffect(() => {
+    const handleBeforeUnload = () => {
+      localStorage.removeItem('searchHistory')
     }
-  }
+    window.addEventListener('beforeunload', handleBeforeUnload)
+    return () => {
+      window.removeEventListener('beforeunload', handleBeforeUnload)
+      // Also clear on component unmount
+      localStorage.removeItem('searchHistory')
+    }
+  }, [])
 
-  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0] || null
-    setFormData(prev => ({ ...prev, songFile: file }))
-  }
+  useEffect(() => {
+    // Focus search input on mount
+    inputRef.current?.focus()
+  }, [])
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault()
-    setIsSubmitting(true)
+  useEffect(() => {
+    // Scroll to results when they appear
+    if (searchResults) {
+      setTimeout(() => {
+        chatEndRef.current?.scrollIntoView({ behavior: 'smooth' })
+      }, 100)
+    }
+  }, [searchResults])
+
+  const handleSearch = async (e?: React.FormEvent) => {
+    e?.preventDefault()
+    if (!query.trim() || isSearching) return
+
+    const userQuery = query.trim()
+    setQuery('')
+    setIsSearching(true)
 
     try {
-      // Validate passwords match
-      if (formData.password !== formData.confirmPassword) {
-        alert('Passwords do not match')
-        setIsSubmitting(false)
-        return
-      }
-
-      // Validate password length
-      if (formData.password.length < 6) {
-        alert('Password must be at least 6 characters')
-        setIsSubmitting(false)
-        return
-      }
-
-      const formDataToSend = new FormData()
-      formDataToSend.append('artistName', formData.artistName)
-      formDataToSend.append('email', formData.email)
-      formDataToSend.append('password', formData.password)
-      formDataToSend.append('confirmPassword', formData.confirmPassword)
-      formDataToSend.append('songName', formData.songName)
-      formDataToSend.append('bio', formData.bio)
-      formDataToSend.append('soundcloudLink', formData.soundcloudLink)
-      formDataToSend.append('website', formData.website)
-      formDataToSend.append('message', formData.message)
-      
-      if (formData.songFile) {
-        formDataToSend.append('songFile', formData.songFile)
-      }
-
-      // Send to artist signup endpoint
-      const response = await fetch('/api/artist-signup', {
+      const response = await fetch('/api/ai-search', {
         method: 'POST',
-        body: formDataToSend,
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({ query: userQuery })
       })
 
-      const result = await response.json()
+      const data: SearchResult = await response.json()
 
-      if (response.ok && result.success) {
-        alert('Artist account created successfully! Please check your email to confirm your account. You can then login to access your dashboard.')
-        setIsModalOpen(false)
-        setFormData({
-          artistName: '',
-          email: '',
-          password: '',
-          confirmPassword: '',
-          songName: '',
-          songFile: null,
-          bio: '',
-          soundcloudLink: '',
-          website: '',
-          message: '',
-          agreeToTerms: false
-        })
-      } else {
-        alert(result.message || 'There was an error creating your account. Please try again.')
-      }
-    } catch (error) {
-      console.error('Error submitting form:', error)
-      alert('There was an error creating your account. Please try again.')
-    } finally {
-      setIsSubmitting(false)
-    }
-  }
-
-  const getVotePercentage = (voteCount: number, targetVotes: number) => {
-    return Math.min(Math.round((voteCount / targetVotes) * 100), 100)
-  }
-
-  const getStatusColor = (status: string) => {
-    switch (status) {
-      case 'approved': return 'text-green-400'
-      case 'pending': return 'text-yellow-400'
-      case 'launched': return 'text-purple-400'
-      default: return 'text-gray-400'
-    }
-  }
-
-  const getStatusIcon = (status: string) => {
-    switch (status) {
-      case 'approved': return '🎵'
-      case 'pending': return '⏳'
-      case 'launched': return '🚀'
-      default: return '📝'
-    }
-  }
-
-  const triggerArtistCardAnimation = () => {
-    if (isAnimating) return
-    
-    setIsAnimating(true)
-    setActiveCardIndex(0)
-    
-    const animateNextCard = (index: number) => {
-      if (index >= artists.length) {
-        // Animation complete
-        setIsAnimating(false)
-        setActiveCardIndex(-1)
+      // Check if this is admin access first
+      if ((data as any).isAdminAccess && (data as any).redirectTo) {
+        // Redirect to admin login
+        window.location.href = (data as any).redirectTo
         return
       }
-      
-      setActiveCardIndex(index)
-      
-      setTimeout(() => {
-        animateNextCard(index + 1)
-      }, 3000) // 3 seconds per card
+
+      // Handle error responses
+      if (!response.ok || (data as any).error) {
+        const errorMsg = (data as any).error || `Request failed with status ${response.status}. Please try again.`
+        setSearchResults({
+          success: false,
+          query: userQuery,
+          aiResponse: errorMsg,
+          relevantContent: []
+        })
+        return
+      }
+
+      // Handle successful responses - REPLACE the previous response
+      if (data.success) {
+        // Replace the search results (not append)
+        setSearchResults(data)
+        
+        // Add to search history
+        const historyItem: SearchHistoryItem = {
+          query: userQuery,
+          response: data.aiResponse,
+          timestamp: Date.now()
+        }
+        const updatedHistory = [historyItem, ...searchHistory].slice(0, 50) // Keep last 50
+        setSearchHistory(updatedHistory)
+        localStorage.setItem('searchHistory', JSON.stringify(updatedHistory))
+      } else {
+        // If not successful but no error field, show generic message
+        const errorMsg = 'Search failed. Please try again.'
+        setSearchResults({
+          success: false,
+          query: userQuery,
+          aiResponse: errorMsg,
+          relevantContent: []
+        })
+      }
+    } catch (error) {
+      console.error('Search error:', error)
+      const errorMessage = error instanceof Error 
+        ? `I'm having trouble processing that right now: ${error.message}. Please try again!`
+        : "I'm having trouble processing that right now. Please try again!"
+      setSearchResults({
+        success: false,
+        query: userQuery,
+        aiResponse: errorMessage,
+        relevantContent: []
+      })
+    } finally {
+      setIsSearching(false)
+      inputRef.current?.focus()
     }
-    
-    animateNextCard(0)
+  }
+
+  const handleSuggestionClick = (suggestion: string) => {
+    setQuery(suggestion)
+    setTimeout(() => handleSearch(), 100)
+  }
+
+  const handleHistoryClick = (historyItem: SearchHistoryItem) => {
+    setQuery(historyItem.query)
+    setSearchResults({
+      success: true,
+      query: historyItem.query,
+      aiResponse: historyItem.response,
+      relevantContent: []
+    })
+    setShowHistory(false)
   }
 
   return (
-    <div>
-      <style jsx global>{`
-        body { ${isModalOpen ? 'overflow: hidden !important;' : ''} }
-      `}</style>
-      <div className={isModalOpen ? 'opacity-0 pointer-events-none select-none' : ''}>
-        <section className="text-center py-20 sm:py-32 container mx-auto">
-          <h1 className="text-5xl md:text-7xl font-bold text-gray-900 leading-tight">
-            Support Unreleased Songs
-          </h1>
-          <p className="text-lg md:text-xl text-gray-600 mt-6 max-w-2xl mx-auto">
-            Support what artists just wrote. Provide feedback. Make contributions.
-          </p>
-          <div className="mt-10 flex flex-col sm:flex-row justify-center items-center gap-4">
-            <button 
-              className="bg-[#E55A2B] text-white font-semibold py-3 px-8 rounded-lg hover:bg-[#D14A1B] transition-all duration-300 transform hover:scale-105 shadow-lg hover:shadow-xl w-full sm:w-auto"
-              onClick={triggerArtistCardAnimation}
-            >
-              Explore Songs
-            </button>
-            <Link 
-              href="/artist-signup"
-              className="bg-white text-gray-900 border border-[#E55A2B] font-semibold py-3 px-8 rounded-lg hover:bg-gray-50 transition-colors w-full sm:w-auto text-center"
-            >
-              Submit Your Song
-            </Link>
-          </div>
-        </section>
+    <div className="min-h-screen bg-gradient-to-br from-gray-50 via-white to-gray-50">
+      {/* Invisible Admin Login Button - Top Right Corner */}
+      <button
+        onClick={() => window.location.href = '/admin-login'}
+        className="fixed top-0 right-0 w-20 h-20 z-50 bg-transparent cursor-pointer"
+        title="Admin Login"
+        aria-label="Admin Login"
+      />
+
+      {/* Search History Icon - Top Right */}
+      <div className="fixed top-4 right-4 z-40">
+        <button
+          onClick={() => setShowHistory(!showHistory)}
+          className="bg-white rounded-full p-3 shadow-lg hover:shadow-xl transition-shadow border border-gray-200"
+          title="Search History"
+        >
+          <svg className="w-6 h-6 text-gray-700" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+          </svg>
+        </button>
         
-        <main className="container mx-auto px-4 md:px-0 pb-20">
-          <h2 className="text-3xl font-bold text-gray-900 mb-8 text-center sm:text-left">
-            Featured Artists
-          </h2>
-
-          {error && (
-            <p className="text-red-500 bg-red-50 p-4 rounded-lg text-center mb-6">
-              Error: {error}
-            </p>
-          )}
-
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-8">
-            {artists.length > 0 ? (
-              artists.map((artist, index) => {
-                const isColumbusCard = artist.name === 'Columbus Songwriters Association'
-                const imageContainerHeight = isColumbusCard ? 'h-48' : 'h-[32rem]'
-                const imageFitStyle = isColumbusCard ? 'object-contain' : 'object-cover'
-
-                return (
-                  <div 
-                    key={artist.id} 
-                    className={`relative bg-white rounded-2xl p-6 border border-gray-200 hover:shadow-lg transition-all duration-300 cursor-pointer group ${
-                      activeCardIndex === index ? 'ring-4 ring-black ring-opacity-75 shadow-2xl' : ''
-                    }`}
-                    style={{ 
-                      height: isColumbusCard ? '400px' : '650px'
-                    }}
-                  >
-                    <Link href={`/artist/${artist.id}`} className={`relative ${imageContainerHeight} block`}>
-                      <Image
-                        src={artist.image_url}
-                        alt={artist.name}
-                        fill
-                        className={`w-full h-full group-hover:scale-105 transition-transform duration-300 ${imageFitStyle}`}
-                      />
-                      <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/20 to-transparent" />
-                      <div className="absolute bottom-0 left-0 p-6 text-white w-full">
-                        <h3 className="text-3xl font-bold">{artist.name}</h3>
-                        <p className="text-sm text-gray-200">{artist.genre}</p>
-                      </div>
-                    </Link>
-
-                    <div className="p-6">
-                      <div className="w-full bg-gray-200 rounded-full h-3 mb-4">
-                        <div 
-                          className="bg-black h-3 rounded-full transition-all duration-500"
-                          style={{ width: `${artist.vote_percentage}%` }}
-                        ></div>
-                      </div>
-                      <div className="flex justify-between text-sm text-gray-600 mb-4">
-                        <span>{artist.vote_percentage}%</span>
-                        <span>Support now</span>
-                      </div>
-
-                      <Link href={`/artist/${artist.id}`} className="block w-full">
-                        <button 
-                          className="w-full bg-black hover:bg-gray-800 text-white font-bold py-3 px-6 rounded-lg transition-all duration-300 transform hover:scale-105 shadow-lg"
-                        >
-                          {artist.name === 'Douggert' ? 'Secret Tracks' :
-                           artist.name === 'Joey Hendrickson' ? 'Live Acoustic Recordings' :
-                           artist.name === 'Jack Folley' ? 'Never Released Single' :
-                           artist.name === 'Test 3' ? 'Provide Feedback' :
-                           index === 0 ? 'Collaborate' :
-                           index === 1 ? 'Support' :
-                           index === 2 ? 'Contribute' :
-                           'Listen'}
-                        </button>
-                      </Link>
-                    </div>
-                  </div>
-                )
-              })
+        {/* History Dropdown */}
+        {showHistory && (
+          <div className="absolute top-14 right-0 w-80 bg-white rounded-lg shadow-2xl border border-gray-200 max-h-96 overflow-y-auto">
+            <div className="p-4 border-b border-gray-200 flex justify-between items-center">
+              <h3 className="font-semibold text-gray-900">Search History</h3>
+              <button
+                onClick={() => setShowHistory(false)}
+                className="text-gray-400 hover:text-gray-600"
+              >
+                <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                </svg>
+              </button>
+            </div>
+            {searchHistory.length === 0 ? (
+              <div className="p-4 text-center text-gray-500 text-sm">
+                No search history yet
+              </div>
             ) : (
-              <div className="col-span-full text-center py-12">
-                <p className="text-gray-500 text-lg">Loading artists...</p>
+              <div className="divide-y divide-gray-200">
+                {searchHistory.map((item, idx) => (
+                  <button
+                    key={idx}
+                    onClick={() => handleHistoryClick(item)}
+                    className="w-full text-left p-4 hover:bg-gray-50 transition-colors"
+                  >
+                    <div className="font-medium text-gray-900 text-sm mb-1 line-clamp-1">
+                      {item.query}
+                    </div>
+                    <div className="text-xs text-gray-500">
+                      {new Date(item.timestamp).toLocaleTimeString()}
+                    </div>
+                  </button>
+                ))}
               </div>
             )}
           </div>
-        </main>
-        
-        {/* Cool Divider with Zig-Zag Line and Rocket */}
-        <div className="relative w-full flex items-center justify-center my-20">
-          <svg width="100%" height="60" viewBox="0 0 1200 60" fill="none" xmlns="http://www.w3.org/2000/svg" className="absolute left-0 right-0 w-full h-16">
-            <polyline points="0,30 50,10 100,50 150,10 200,50 250,10 300,50 350,10 400,50 450,10 500,50 550,10 600,50 650,10 700,50 750,10 800,50 850,10 900,50 950,10 1000,50 1050,10 1100,50 1150,10 1200,30" stroke="#E55A2B" strokeWidth="6" fill="none" />
-          </svg>
-        </div>
-        
-        <ArtistHowItWorks />
+        )}
       </div>
-      {/* Modal */}
-      {isModalOpen && (
-        <div className="fixed inset-0 bg-black flex items-center justify-center p-4 z-50">
-          {/* Back Arrow - Fixed Position */}
-          <Link 
-            href="/" 
-            className="fixed left-4 top-1/2 transform -translate-y-1/2 z-50 inline-flex items-center justify-center w-8 h-8 md:w-12 md:h-12 bg-white backdrop-blur-md border border-gray-300 rounded-full text-gray-700 hover:text-gray-900 hover:bg-gray-100 transition-all duration-300 group shadow-lg"
-            onClick={() => setIsModalOpen(false)}
-          >
-            <svg
-              xmlns="http://www.w3.org/2000/svg"
-              viewBox="0 0 20 20"
-              fill="currentColor"
-              className="w-4 h-4 md:w-6 md:h-6 group-hover:-translate-x-1 transition-transform"
-            >
-              <path
-                fillRule="evenodd"
-                d="M12.79 5.23a.75.75 0 01-.02 1.06L8.832 10l3.938 3.71a.75.75 0 11-1.04 1.08l-4.5-4.25a.75.75 0 010-1.08l4.5-4.25a.75.75 0 011.06.02z"
-                clipRule="evenodd"
-              />
-            </svg>
-          </Link>
 
-          {/* Navbar */}
-          <div className="fixed top-0 left-0 right-0 z-40">
-            <div className="sticky top-0 z-50 py-4 bg-white/95 backdrop-blur-md border-b border-gray-200">
-              <div className="container mx-auto flex justify-between items-center px-4 md:px-0">
-                <Link href="/" className="flex items-center gap-2" onClick={() => setIsModalOpen(false)}>
-                  <svg
-                    xmlns="http://www.w3.org/2000/svg"
-                    viewBox="0 0 20 20"
-                    fill="currentColor"
-                    className="w-8 h-8 text-[#E55A2B]"
-                  >
-                    <path
-                      d="M10.894 2.553a1 1 0 00-1.789 0l-7 14a1 1 0 001.169 1.409l5-1.429A1 1 0 009 15.571V11a1 1 0 112 0v4.571a1 1 0 00.725.962l5 1.428a1 1 0 001.17-1.408l-7-14z"
-                    />
-                  </svg>
-                  <span className="text-xl font-bold text-gray-900">LaunchThatSong</span>
-                </Link>
-                <nav className="hidden md:flex items-center gap-6">
-                  <Link href="/#connect" className="text-gray-700 hover:text-black transition-colors" onClick={() => setIsModalOpen(false)}>
-                    Connect
-                  </Link>
-                  <Link
-                    href="/login"
-                    className="bg-[#E55A2B] text-white font-semibold py-2 px-4 rounded-full hover:bg-[#D14A1B] transition-colors"
-                    onClick={() => setIsModalOpen(false)}
-                  >
-                    Login
-                  </Link>
-                  <Link href="/cart" className="relative hover:text-black transition-colors text-gray-700" onClick={() => setIsModalOpen(false)}>
-                    <svg
-                      xmlns="http://www.w3.org/2000/svg"
-                      viewBox="0 0 24 24"
-                      fill="currentColor"
-                      className="w-6 h-6"
-                    >
-                      <path d="M2.25 2.25a.75.75 0 000 1.5h1.386c.17 0 .318.114.362.278l2.558 9.592a3.752 3.752 0 00-2.806 3.63c0 .414.336.75.75.75h15.75a.75.75 0 000-1.5H5.378A2.25 2.25 0 017.5 15h11.218a.75.75 0 00.674-.421 60.358 60.358 0 002.46-5.23c.18-.487.22-1.01.12-1.521a.75.75 0 00-.728-.654h-12.21l-1.581-5.927A.75.75 0 003.636 2.25H2.25zM3.75 20.25a1.5 1.5 0 113 0 1.5 1.5 0 01-3 0zM16.5 20.25a1.5 1.5 0 113 0 1.5 1.5 0 01-3 0z" />
+      {/* Main Content */}
+      <div className="container mx-auto px-4 py-12 md:py-20">
+        <div className="max-w-4xl mx-auto">
+          {/* Hero Section */}
+          <div className="text-center mb-12">
+            <h1 className="text-5xl md:text-7xl font-bold text-gray-900 mb-6 leading-tight">
+              Joey Hendrickson
+            </h1>
+          </div>
+
+          {/* Search Bar */}
+          <div className="mb-8">
+            <form onSubmit={handleSearch} className="relative">
+              <div className="relative">
+                <input
+                  ref={inputRef}
+                  type="text"
+                  value={query}
+                  onChange={(e) => setQuery(e.target.value)}
+                  placeholder="ask me anything"
+                  className="w-full px-6 py-4 pr-14 text-lg border-2 border-gray-300 rounded-2xl focus:outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-200 transition-all shadow-lg"
+                  disabled={isSearching}
+                />
+                <button
+                  type="submit"
+                  disabled={isSearching || !query.trim()}
+                  className="absolute right-3 top-1/2 transform -translate-y-1/2 p-2 text-blue-600 hover:text-blue-700 disabled:text-gray-400 disabled:cursor-not-allowed transition-colors"
+                >
+                  {isSearching ? (
+                    <svg className="w-6 h-6 animate-spin" fill="none" viewBox="0 0 24 24">
+                      <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                      <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
                     </svg>
-                    {Array.isArray(cartItems) && cartItems.length > 0 && (
-                      <span className="absolute -top-2 -right-2 bg-black text-white text-xs font-bold rounded-full h-5 w-5 flex items-center justify-center">
-                        {Array.isArray(cartItems) ? cartItems.reduce((acc, item) => acc + item.voteCount, 0) : 0}
-                      </span>
-                    )}
-                  </Link>
-                </nav>
+                  ) : (
+                    <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+                    </svg>
+                  )}
+                </button>
+              </div>
+            </form>
+
+            {/* Quick Suggestions */}
+            {!searchResults && (
+              <div className="mt-6 flex flex-wrap gap-2 justify-center">
+                {[
+                  'What projects have you worked on?',
+                  'Tell me about your music',
+                  'What are your values?',
+                  'Tell me about your travels'
+                ].map((suggestion) => (
+                  <button
+                    key={suggestion}
+                    onClick={() => handleSuggestionClick(suggestion)}
+                    className="px-4 py-2 text-sm bg-white border border-gray-300 rounded-full hover:bg-gray-50 hover:border-blue-300 transition-colors text-gray-700"
+                  >
+                    {suggestion}
+                  </button>
+                ))}
+              </div>
+            )}
+          </div>
+
+          {/* Generative AI Response Display - This is the main content */}
+          {searchResults && searchResults.aiResponse && (
+            <>
+              <GenerativeDisplay
+                content={searchResults.aiResponse}
+                query={searchResults.query}
+              />
+              <div ref={chatEndRef} />
+            </>
+          )}
+
+          {/* Suggestions from AI */}
+          {searchResults && searchResults.suggestions && searchResults.suggestions.length > 0 && (
+            <div className="mt-8 p-6 bg-blue-50 rounded-xl border border-blue-200">
+              <h3 className="text-lg font-semibold text-blue-900 mb-3">Try asking:</h3>
+              <div className="flex flex-wrap gap-2">
+                {searchResults.suggestions.map((suggestion, idx) => (
+                  <button
+                    key={idx}
+                    onClick={() => handleSuggestionClick(suggestion)}
+                    className="px-4 py-2 text-sm bg-white border border-blue-300 rounded-full hover:bg-blue-100 transition-colors text-blue-700"
+                  >
+                    {suggestion}
+                  </button>
+                ))}
               </div>
             </div>
-          </div>
+          )}
         </div>
-      )}
+      </div>
 
-      {Array.isArray(cartItems) && cartItems.length > 0 && (
-        <div className="fixed bottom-4 right-4 z-50">
-          <Link
-            href="/cart"
-            className="bg-[#E55A2B] text-white px-4 py-2 rounded-full shadow-lg hover:bg-[#D14A1B] transition-colors flex items-center gap-2"
-          >
-            <span>🛒</span>
-            <span>{Array.isArray(cartItems) ? cartItems.reduce((acc, item) => acc + item.voteCount, 0) : 0} contribution</span>
-          </Link>
+      {/* Footer */}
+      <footer className="border-t border-gray-200 py-8 mt-20">
+        <div className="container mx-auto px-4 text-center text-gray-600">
+          <p>© {new Date().getFullYear()} Joey Hendrickson. All rights reserved.</p>
         </div>
-      )}
+      </footer>
     </div>
   )
 }

@@ -14,19 +14,13 @@ interface Song {
   vote_price: number
   current_votes: number
   vote_goal: number
-  artist_id: string
-}
-
-interface Artist {
-  id: string
-  name: string
+  artist_name: string
 }
 
 export default function CartPage() {
   const router = useRouter()
-  const { cartItems, removeFromCart, clearCart, lastVisitedArtist, removeVoiceComment } = useCart()
+  const { cartItems, removeFromCart, clearCart, removeVoiceComment } = useCart()
   const [songs, setSongs] = useState<Song[]>([])
-  const [artists, setArtists] = useState<{ [key: string]: Artist }>({})
   const [loading, setLoading] = useState(true)
   const [playingComment, setPlayingComment] = useState<string | null>(null)
   const [currentAudio, setCurrentAudio] = useState<HTMLAudioElement | null>(null)
@@ -42,30 +36,13 @@ export default function CartPage() {
       const songIds = cartItems.map(item => item.songId)
       const { data, error } = await supabase
         .from('songs')
-        .select('id, title, vote_price, current_votes, vote_goal, artist_id')
+        .select('id, title, vote_price, current_votes, vote_goal, artist_name')
         .in('id', songIds)
 
       if (error) {
         console.error('Error fetching songs:', error.message)
       } else {
         setSongs(data || [])
-        
-        // Fetch artist information for each song
-        const artistIds = [...new Set(data?.map(song => song.artist_id) || [])]
-        if (artistIds.length > 0) {
-          const { data: artistData, error: artistError } = await supabase
-            .from('artists')
-            .select('id, name')
-            .in('id', artistIds)
-
-          if (!artistError && artistData) {
-            const artistMap: { [key: string]: Artist } = {}
-            artistData.forEach(artist => {
-              artistMap[artist.id] = artist
-            })
-            setArtists(artistMap)
-          }
-        }
       }
       setLoading(false)
     }
@@ -183,43 +160,23 @@ export default function CartPage() {
   return (
     <div className="min-h-screen bg-white">
       {/* Back Button - Middle Left */}
-      {lastVisitedArtist ? (
-        <Link 
-          href={`/artist/${lastVisitedArtist}`}
-          className="fixed left-4 top-1/2 transform -translate-y-1/2 z-50 inline-flex items-center justify-center w-12 h-12 bg-white backdrop-blur-md border border-gray-300 rounded-full text-gray-700 hover:text-gray-900 hover:bg-gray-100 transition-all duration-300 group shadow-lg"
+      <Link 
+        href="/music"
+        className="fixed left-4 top-1/2 transform -translate-y-1/2 z-50 inline-flex items-center justify-center w-12 h-12 bg-white backdrop-blur-md border border-gray-300 rounded-full text-gray-700 hover:text-gray-900 hover:bg-gray-100 transition-all duration-300 group shadow-lg"
+      >
+        <svg
+          xmlns="http://www.w3.org/2000/svg"
+          viewBox="0 0 20 20"
+          fill="currentColor"
+          className="w-6 h-6 group-hover:-translate-x-1 transition-transform"
         >
-          <svg
-            xmlns="http://www.w3.org/2000/svg"
-            viewBox="0 0 20 20"
-            fill="currentColor"
-            className="w-6 h-6 group-hover:-translate-x-1 transition-transform"
-          >
-            <path
-              fillRule="evenodd"
-              d="M12.79 5.23a.75.75 0 01-.02 1.06L8.832 10l3.938 3.71a.75.75 0 11-1.04 1.08l-4.5-4.25a.75.75 0 010-1.08l4.5-4.25a.75.75 0 011.06.02z"
-              clipRule="evenodd"
-            />
-          </svg>
-        </Link>
-      ) : (
-        <Link 
-          href="/"
-          className="fixed left-4 top-1/2 transform -translate-y-1/2 z-50 inline-flex items-center justify-center w-12 h-12 bg-white backdrop-blur-md border border-gray-300 rounded-full text-gray-700 hover:text-gray-900 hover:bg-gray-100 transition-all duration-300 group shadow-lg"
-        >
-          <svg
-            xmlns="http://www.w3.org/2000/svg"
-            viewBox="0 0 20 20"
-            fill="currentColor"
-            className="w-6 h-6 group-hover:-translate-x-1 transition-transform"
-          >
-            <path
-              fillRule="evenodd"
-              d="M12.79 5.23a.75.75 0 01-.02 1.06L8.832 10l3.938 3.71a.75.75 0 11-1.04 1.08l-4.5-4.25a.75.75 0 010-1.08l4.5-4.25a.75.75 0 011.06.02z"
-              clipRule="evenodd"
-            />
-          </svg>
-        </Link>
-      )}
+          <path
+            fillRule="evenodd"
+            d="M12.79 5.23a.75.75 0 01-.02 1.06L8.832 10l3.938 3.71a.75.75 0 11-1.04 1.08l-4.5-4.25a.75.75 0 010-1.08l4.5-4.25a.75.75 0 011.06.02z"
+            clipRule="evenodd"
+          />
+        </svg>
+      </Link>
 
       <div className="container mx-auto px-4 py-8">
         {/* Header */}
@@ -252,7 +209,6 @@ export default function CartPage() {
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 mb-8">
               {cartItems.map((item) => {
                 const song = songs.find(s => s.id === item.songId)
-                const artist = artists[item.artistId]
                 const hasVoiceComment = !!item.voiceComment
                 
                 return (
@@ -260,8 +216,8 @@ export default function CartPage() {
                     <div className="flex justify-between items-start mb-3">
                       <div className="flex-1 min-w-0">
                         <div className="text-gray-900 font-semibold truncate">{item.songTitle}</div>
-                        {artist && (
-                          <div className="text-gray-600 text-sm">by {artist.name}</div>
+                        {song?.artist_name && (
+                          <div className="text-gray-600 text-sm">by {song.artist_name}</div>
                         )}
                         <div className="text-gray-600 text-sm">Contributions: {item.voteCount}</div>
                       </div>
