@@ -1,11 +1,12 @@
 # Supabase Setup Instructions
 
 ## Overview
-This is a **NEW** Supabase project for Joey Hendrickson's personal website. It is completely separate from the old `launchthatsong` multi-artist platform.
+This is a **NEW** Supabase project for Joey Hendrickson's personal website.
 
 ## Quick Start
 
 1. **Create a new Supabase project** at https://supabase.com
+   - Project Name: `JoeyHendrickson-ama`
 2. **Run the complete schema** in the SQL Editor:
    - Open `supabase_complete_schema.sql`
    - Copy and paste the entire file into Supabase SQL Editor

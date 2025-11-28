@@ -53,7 +53,7 @@ ${songFile ? `Song File: ${songFile.name} (${songFile.size} bytes)` : 'No song f
     // Email options
     const mailOptions = {
       from: process.env.SMTP_USER,
-      to: 'hello@launchthatsong.com',
+      to: 'joeyhendrickson@me.com',
       subject: `New Song Submission: ${songName} by ${artistName}`,
       text: emailContent,
       html: `

@@ -11,7 +11,7 @@ This guide will walk you through setting up Supabase for your personal website p
 2. **Create a New Project** (or use existing)
    - Click "New Project"
    - Fill in:
-     - **Name**: `launchthatsong` (or your preferred name)
+     - **Name**: `JoeyHendrickson-ama`
      - **Database Password**: Create a strong password (save this!)
      - **Region**: Choose closest to you (e.g., `US East (North Virginia)`)
    - Click "Create new project"

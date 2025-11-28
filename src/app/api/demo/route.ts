@@ -2,7 +2,7 @@ import { NextResponse } from 'next/server'
 
 export async function GET() {
   return NextResponse.json({ 
-    message: "LaunchThatSong Demo API",
+    message: "Joey Hendrickson Personal Website API",
     status: "Demo mode - API routes are available but return mock data",
     features: [
       "Artist signup and management",

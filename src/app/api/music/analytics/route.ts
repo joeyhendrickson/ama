@@ -15,7 +15,7 @@ export async function GET(request: NextRequest) {
     }
 
     // Check if user is admin
-    const isAdminEmail = user.email === 'admin@launchthatsong.com'
+    const isAdminEmail = user.email === 'joeyhendrickson@me.com'
     let isAdmin = isAdminEmail
 
     if (!isAdminEmail) {

@@ -96,7 +96,7 @@ export default function ReportIssue() {
           <div className="text-center mb-12">
             <h1 className="text-4xl font-bold text-gray-900 mb-4">Report an Issue</h1>
             <p className="text-gray-600 text-lg">
-              Help us improve Launch That Song by reporting any issues you encounter.
+              Help improve this website by reporting any issues you encounter.
             </p>
           </div>
 
@@ -146,7 +146,7 @@ export default function ReportIssue() {
                   value={formData.pageUrl}
                   onChange={handleInputChange}
                   className="w-full px-4 py-3 bg-gray-50 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#E55A2B] focus:border-[#E55A2B] text-gray-900 placeholder-gray-500"
-                  placeholder="https://launchthatsong.com/..."
+                  placeholder="https://joeyhendrickson.com/..."
                 />
                 <p className="text-sm text-gray-500 mt-1">
                   Optional: Include the URL of the page where you encountered the issue

@@ -13,8 +13,8 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    // Check if user is admin (admin@launchthatsong.com or admin_users table)
-    const isAdminEmail = user.email === 'admin@launchthatsong.com'
+    // Check if user is admin (joeyhendrickson@me.com or admin_users table)
+    const isAdminEmail = user.email === 'joeyhendrickson@me.com'
     let isAdmin = isAdminEmail
 
     if (!isAdminEmail) {

@@ -7,7 +7,7 @@ Follow these steps in order:
 1. Go to https://supabase.com/dashboard
 2. Sign in or create account
 3. Click **"New Project"** (or select existing)
-   - Name: `launchthatsong`
+   - Name: `JoeyHendrickson-ama`
    - Set a database password (save it!)
    - Choose region
    - Wait 2-3 minutes for setup

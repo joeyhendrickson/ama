@@ -45,7 +45,7 @@ export async function POST(request: NextRequest) {
     }
 
     // Check if user is admin
-    const isAdminEmail = user.email === 'admin@launchthatsong.com'
+    const isAdminEmail = user.email === 'joeyhendrickson@me.com'
     let isAdmin = isAdminEmail
 
     if (!isAdminEmail) {
@@ -127,7 +127,7 @@ export async function DELETE(request: NextRequest) {
     }
 
     // Check if user is admin
-    const isAdminEmail = user.email === 'admin@launchthatsong.com'
+    const isAdminEmail = user.email === 'joeyhendrickson@me.com'
     let isAdmin = isAdminEmail
 
     if (!isAdminEmail) {

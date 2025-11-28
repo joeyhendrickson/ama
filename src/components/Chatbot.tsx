@@ -16,7 +16,7 @@ const Chatbot = () => {
     if (isChatbotOpen && chatbotMode === 'manager' && messages.length === 0) {
       const welcomeMessage = {
         id: 'welcome',
-        text: "🚀 Welcome to your AI Music Manager! I'm here to help you strategize your music career, grow your audience, and maximize your earnings on LaunchThatSong. What would you like to work on today?",
+        text: "🚀 Welcome to your AI Assistant! I'm here to help you with your personal website and content management. What would you like to work on today?",
         isUser: false
       }
       setMessages([welcomeMessage])
@@ -37,7 +37,7 @@ const Chatbot = () => {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ messages: [
-          { role: 'system', content: "You are an expert music platform assistant for LaunchThatSong.com. Give strategic, actionable, and motivational advice to artists about moving their music from SoundCloud to LaunchThatSong, growing their audience, and monetizing unreleased songs. Use the platform's rocket fuel, NFT, and voice comment features in your answers." },
+          { role: 'system', content: "You are an AI assistant for Joey Hendrickson's personal website. Help with content management, music, books, and general website questions." },
           ...[...messages, userMessage].map(m => ({ role: m.isUser ? 'user' : 'assistant', content: m.text }))
         ] })
       })

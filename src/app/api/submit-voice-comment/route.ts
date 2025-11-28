@@ -43,7 +43,7 @@ export async function POST(request: NextRequest) {
           
           <div style="text-align: center; margin-top: 30px;">
             <p style="color: #64748b; font-size: 14px;">
-              This comment was recorded while the listener was enjoying your music on LaunchThatSong.
+              This comment was recorded while the listener was enjoying your music.
             </p>
           </div>
         </div>
